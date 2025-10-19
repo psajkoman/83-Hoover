@@ -68,7 +68,7 @@ export default function SignInPage() {
             rel="noopener noreferrer"
             className="text-gang-highlight hover:text-gang-highlight/80 text-sm transition-colors"
           >
-            Don't have Discord access? Join our server →
+            Don&apos;t have Discord access? Join our server →
           </a>
         </div>
       </div>

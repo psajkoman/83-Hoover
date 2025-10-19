@@ -27,15 +27,15 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account && profile) {
-        token.discordId = profile.id
-        token.username = profile.username
+        token.discordId = profile.id as string
+        token.username = profile.username as string
       }
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).discordId = token.discordId
-        (session.user as any).username = token.username
+      if (session.user && token) {
+        session.user.discordId = token.discordId as string | undefined
+        session.user.username = token.username as string | undefined
       }
       return session
     },

@@ -49,7 +49,7 @@ export default function HomePage() {
                 <h3 className="text-lg font-semibold text-white mb-2">Create Supabase Project</h3>
                 <p className="text-gray-400 mb-3">
                   Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-gang-highlight hover:underline">supabase.com</a> and create a free account.
-                  Create a new project named "83-hoover-hub".
+                  Create a new project named &quot;83-hoover-hub&quot;.
                 </p>
                 <a 
                   href="https://supabase.com/dashboard" 
@@ -230,11 +230,11 @@ DISCORD_GUILD_ID="your-guild-id"`}
             <h2 className="text-2xl font-bold text-white mb-4">Getting Started</h2>
             <div className="space-y-4 text-gray-300">
               <p>
-                Welcome to your 83 Hoover Faction Hub! Here's what you can do next:
+                Welcome to your 83 Hoover Faction Hub! Here&apos;s what you can do next:
               </p>
               <ul className="list-disc list-inside space-y-2">
                 <li>Sign in with Discord to create your first admin account</li>
-                <li>Go to Supabase dashboard and change your role to 'ADMIN'</li>
+                <li>Go to Supabase dashboard and change your role to &apos;ADMIN&apos;</li>
                 <li>Start creating posts and managing your faction</li>
                 <li>Configure Discord webhooks for automatic post imports</li>
                 <li>Invite your faction members to join</li>
