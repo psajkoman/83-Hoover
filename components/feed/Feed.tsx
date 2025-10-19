@@ -19,7 +19,9 @@ export default function Feed({ initialPosts, currentUserId }: FeedProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates (if Pusher is configured)
+    if (!pusherClient) return
+
     const channel = pusherClient.subscribe(PUSHER_CHANNELS.FEED)
     
     channel.bind(PUSHER_EVENTS.NEW_POST, (newPost: any) => {

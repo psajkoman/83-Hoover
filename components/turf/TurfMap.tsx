@@ -37,7 +37,9 @@ export default function TurfMap() {
   useEffect(() => {
     loadZones()
     
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates (if Pusher is configured)
+    if (!pusherClient) return
+
     const channel = pusherClient.subscribe(PUSHER_CHANNELS.TURF)
     channel.bind(PUSHER_EVENTS.TURF_UPDATE, (updatedZone: TurfZone) => {
       setZones((prev) => 
