@@ -41,12 +41,14 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
-    // Trigger real-time update
-    await pusherServer.trigger(
-      PUSHER_CHANNELS.FEED,
-      PUSHER_EVENTS.NEW_COMMENT,
-      { postId, comment }
-    )
+    // Trigger real-time update (if Pusher is configured)
+    if (pusherServer) {
+      await pusherServer.trigger(
+        PUSHER_CHANNELS.FEED,
+        PUSHER_EVENTS.NEW_COMMENT,
+        { postId, comment }
+      )
+    }
 
     return NextResponse.json(comment, { status: 201 })
   } catch (error) {

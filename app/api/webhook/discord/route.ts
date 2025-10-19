@@ -75,8 +75,10 @@ export async function POST(request: NextRequest) {
 
     if (postError) throw postError
 
-    // Trigger real-time update
-    await pusherServer.trigger(PUSHER_CHANNELS.FEED, PUSHER_EVENTS.NEW_POST, post)
+    // Trigger real-time update (if Pusher is configured)
+    if (pusherServer) {
+      await pusherServer.trigger(PUSHER_CHANNELS.FEED, PUSHER_EVENTS.NEW_POST, post)
+    }
 
     return NextResponse.json({ success: true, postId: post.id })
   } catch (error) {
