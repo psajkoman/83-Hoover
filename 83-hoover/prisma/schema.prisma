@@ -1,0 +1,215 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  discordId     String    @unique
+  username      String
+  discriminator String?
+  avatar        String?
+  email         String?
+  role          UserRole  @default(MEMBER)
+  rank          String?   // IC rank within the gang
+  joinedAt      DateTime  @default(now())
+  lastActive    DateTime  @default(now())
+  
+  posts         Post[]
+  comments      Comment[]
+  logs          Log[]
+  createdEvents Event[]   @relation("EventCreator")
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN       // Full access
+  LEADER      // Faction leadership
+  MODERATOR   // Content moderation
+  MEMBER      // Regular member
+  GUEST       // Limited access
+}
+
+model Post {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  type        PostType
+  title       String?
+  content     String
+  mediaUrls   String[]    // Cloudinary URLs
+  tags        String[]
+  isIC        Boolean     @default(true) // In-character vs OOC
+  isPinned    Boolean     @default(false)
+  
+  authorId    String      @db.ObjectId
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  discordMessageId String? @unique
+  discordChannelId String?
+  
+  comments    Comment[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@map("posts")
+  @@index([type, createdAt])
+  @@index([authorId])
+}
+
+enum PostType {
+  ANNOUNCEMENT
+  SCREENSHOT
+  WORD_ON_STREET
+  ATTACK_LOG
+  DEFENSE_LOG
+  GRAFFITI
+  MEDIA
+  GENERAL
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  
+  postId    String   @db.ObjectId
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  authorId  String   @db.ObjectId
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@map("comments")
+  @@index([postId])
+}
+
+model Log {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  type        LogType
+  title       String
+  description String
+  location    String?
+  participants String[] // Character names
+  outcome     String?
+  
+  authorId    String   @db.ObjectId
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  timestamp   DateTime @default(now())
+  
+  @@map("logs")
+  @@index([type, timestamp])
+}
+
+enum LogType {
+  TURF_WAR
+  ROBBERY
+  DRUG_DEAL
+  MEETING
+  RECRUITMENT
+  ALLIANCE
+  CONFLICT
+  OTHER
+}
+
+model Event {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  type        EventType
+  location    String?
+  startTime   DateTime
+  endTime     DateTime?
+  isRecurring Boolean     @default(false)
+  
+  creatorId   String      @db.ObjectId
+  creator     User        @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  attendees   String[]    // Discord IDs
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@map("events")
+  @@index([startTime])
+}
+
+enum EventType {
+  MEETING
+  OPERATION
+  RECRUITMENT
+  PARTY
+  TRAINING
+  OTHER
+}
+
+model TurfZone {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String       @unique
+  description String?
+  coordinates Json         // GeoJSON polygon
+  status      TurfStatus   @default(CONTROLLED)
+  controlledBy String?     // Faction name
+  contestedBy  String[]    // Other factions
+  
+  history     TurfHistory[]
+  
+  updatedAt   DateTime     @updatedAt
+  
+  @@map("turf_zones")
+}
+
+enum TurfStatus {
+  CONTROLLED
+  CONTESTED
+  NEUTRAL
+  LOST
+}
+
+model TurfHistory {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  
+  zoneId      String    @db.ObjectId
+  zone        TurfZone  @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  
+  action      String    // "captured", "lost", "defended"
+  description String?
+  faction     String    // Faction involved
+  
+  timestamp   DateTime  @default(now())
+  
+  @@map("turf_history")
+  @@index([zoneId, timestamp])
+}
+
+model WebhookConfig {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  channelId   String   @unique
+  channelName String
+  postType    PostType
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("webhook_configs")
+}
+
+model Settings {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  key             String   @unique
+  value           String
+  description     String?
+  
+  updatedAt       DateTime @updatedAt
+  
+  @@map("settings")
+}
