@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
     
     const { data: post, error } = await supabase
       .from('posts')
@@ -44,7 +44,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
     
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -105,7 +105,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
     
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {

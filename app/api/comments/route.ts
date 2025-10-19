@@ -6,7 +6,7 @@ import { pusherServer, PUSHER_CHANNELS, PUSHER_EVENTS } from '@/lib/pusher'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies })
+    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
     
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
