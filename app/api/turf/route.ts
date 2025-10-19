@@ -124,8 +124,10 @@ export async function PATCH(request: NextRequest) {
 
     if (historyError) console.error('Error creating history:', historyError)
 
-    // Trigger real-time update
-    await pusherServer.trigger(PUSHER_CHANNELS.TURF, PUSHER_EVENTS.TURF_UPDATE, zone)
+    // Trigger real-time update (if Pusher is configured)
+    if (pusherServer) {
+      await pusherServer.trigger(PUSHER_CHANNELS.TURF, PUSHER_EVENTS.TURF_UPDATE, zone)
+    }
 
     return NextResponse.json(zone)
   } catch (error) {
