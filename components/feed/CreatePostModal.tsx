@@ -174,7 +174,7 @@ export default function CreatePostModal({ isOpen, onClose, onSuccess }: CreatePo
                   <button
                     type="button"
                     onClick={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
-                    className="text-red-400 hover:text-red-300"
+                    className="text-orange-400 hover:text-orange-300"
                   >
                     <X className="w-4 h-4" />
                   </button>

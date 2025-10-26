@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "83 Hoover Criminals | Los Angeles RP",
+  title: "83 Hoover Criminals | Los Santos Roleplay",
   description: "Official faction hub for 83 Hoover Criminals - GTA San Andreas RP Server",
   keywords: "83 hoover, gta rp, los angeles rp, gang rp, faction hub",
 };

@@ -10,8 +10,8 @@ export default function Badge({ className, variant = 'default', children, ...pro
     default: 'bg-gray-500/20 text-gray-300',
     success: 'bg-gang-green/20 text-gang-green',
     warning: 'bg-yellow-500/20 text-yellow-400',
-    danger: 'bg-red-500/20 text-red-400',
-    info: 'bg-blue-500/20 text-blue-400',
+    danger: 'bg-orange-500/20 text-orange-400',
+    info: 'bg-gray-600/20 text-gray-400',
   }
 
   return (

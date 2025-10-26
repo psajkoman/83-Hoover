@@ -37,9 +37,9 @@ export function truncateText(text: string, maxLength: number): string {
 export function getPostTypeColor(type: string): string {
   const colors: Record<string, string> = {
     ANNOUNCEMENT: 'bg-gang-highlight',
-    SCREENSHOT: 'bg-blue-500',
+    SCREENSHOT: 'bg-gray-600',
     WORD_ON_STREET: 'bg-yellow-500',
-    ATTACK_LOG: 'bg-red-500',
+    ATTACK_LOG: 'bg-orange-500',
     DEFENSE_LOG: 'bg-green-500',
     GRAFFITI: 'bg-purple-500',
     MEDIA: 'bg-pink-500',

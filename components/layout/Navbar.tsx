@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User } from 'lucide-react'
+import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User, Swords } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 import Button from '../ui/Button'
 
@@ -14,6 +14,7 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/', label: 'Feed', icon: Home },
+    { href: '/wars', label: 'Wars', icon: Swords },
     { href: '/turf', label: 'Turf Map', icon: Map },
     { href: '/gallery', label: 'Gallery', icon: ImageIcon },
     { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
@@ -32,7 +33,7 @@ export default function Navbar() {
             </div>
             <div className="hidden sm:block">
               <div className="text-white font-bold text-lg">83 Hoover Criminals</div>
-              <div className="text-gang-gold text-xs">Los Angeles RP</div>
+              <div className="text-gang-gold text-xs">Los Santos Roleplay</div>
             </div>
           </Link>
 

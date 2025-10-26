@@ -34,11 +34,11 @@ export default function SignInPage() {
 
         <Card variant="elevated" className="p-6">
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-red-400 text-sm font-medium mb-1">Sign In Error</p>
-                <p className="text-red-300 text-sm">
+                <p className="text-orange-400 text-sm font-medium mb-1">Sign In Error</p>
+                <p className="text-orange-300 text-sm">
                   {errorMessages[error] || errorMessages.Default}
                 </p>
               </div>

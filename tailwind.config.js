@@ -9,15 +9,15 @@ module.exports = {
     extend: {
       colors: {
         // Gang-themed color palette
-        'gang-primary': '#1a1a2e',
-        'gang-secondary': '#16213e',
-        'gang-accent': '#0f3460',
-        'gang-highlight': '#e94560',
+        'gang-primary': '#090909',
+        'gang-secondary': 'rgb(13 13 13 / 90%)',
+        'gang-accent': '#2d2d2d', // Changed from blue to dark grey
+        'gang-highlight': '#ff8c42', // Changed from red to orange
         'gang-gold': '#ffd700',
         'gang-green': '#00ff41',
         'turf-controlled': '#4ade80',
         'turf-contested': '#fb923c',
-        'turf-enemy': '#ef4444',
+        'turf-enemy': '#ff8c42', // Changed from red to orange
       },
       fontFamily: {
         'display': ['var(--font-display)', 'system-ui', 'sans-serif'],

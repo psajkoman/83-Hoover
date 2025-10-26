@@ -4,20 +4,24 @@ import { redirect } from 'next/navigation'
 import { Database } from '@/types/supabase'
 import Card from '@/components/ui/Card'
 import { Users, FileText, MapPin, Settings } from 'lucide-react'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import DiscordMembersList from '@/components/admin/DiscordMembersList'
+import WarManagement from '@/components/admin/WarManagement'
 
 export default async function AdminPage() {
-  const supabase = createServerComponentClient<Database>({ cookies })
-  
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getServerSession(authOptions)
   
   if (!session?.user) {
     redirect('/auth/signin')
   }
 
+  const cookieStore = await cookies()
+  const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore })
   const { data: user } = await supabase
     .from('users')
     .select('*')
-    .eq('discord_id', session.user.id)
+    .eq('discord_id', (session.user as any).discordId)
     .single()
 
   if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)) {
@@ -61,7 +65,7 @@ export default async function AdminPage() {
         </Card>
         
         <Card className="text-center">
-          <FileText className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+          <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
           <div className="text-3xl font-bold text-white mb-1">{totalPosts}</div>
           <div className="text-sm text-gray-400">Total Posts</div>
         </Card>
@@ -79,32 +83,15 @@ export default async function AdminPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Members */}
-        <Card variant="elevated">
-          <h3 className="font-bold text-xl text-white mb-4">Recent Members</h3>
-          <div className="space-y-3">
-            {recentUsers.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-3 bg-gang-primary/30 rounded-lg">
-                <div>
-                  <div className="text-white font-medium">{member.username}</div>
-                  <div className="text-xs text-gray-400">
-                    Joined {new Date(member.joined_at).toLocaleDateString()}
-                  </div>
-                </div>
-                <span className={`px-3 py-1 rounded text-xs font-semibold ${
-                  member.role === 'ADMIN' ? 'bg-red-500/20 text-red-400' :
-                  member.role === 'LEADER' ? 'bg-gang-gold/20 text-gang-gold' :
-                  member.role === 'MODERATOR' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {member.role}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Discord Server Members */}
+        <DiscordMembersList />
 
+        {/* War Management */}
+        <WarManagement />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Quick Actions */}
         <Card variant="elevated">
           <h3 className="font-bold text-xl text-white mb-4">Quick Actions</h3>
@@ -115,7 +102,7 @@ export default async function AdminPage() {
             <button className="w-full px-4 py-3 bg-gang-accent hover:bg-gang-accent/90 rounded-lg text-white font-medium transition-colors text-left">
               🗺️ Update Turf Status
             </button>
-            <button className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors text-left">
+            <button className="w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium transition-colors text-left">
               👥 Manage Members
             </button>
             <button className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors text-left">

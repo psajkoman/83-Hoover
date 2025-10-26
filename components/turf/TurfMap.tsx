@@ -196,7 +196,7 @@ export default function TurfMap() {
           <div className="text-sm text-gray-400">Neutral</div>
         </Card>
         <Card className="text-center">
-          <div className="text-3xl font-bold text-red-500 mb-1">
+          <div className="text-3xl font-bold text-orange-500 mb-1">
             {zones.filter(z => z.status === 'LOST').length}
           </div>
           <div className="text-sm text-gray-400">Lost</div>

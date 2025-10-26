@@ -99,9 +99,9 @@ export default function PostCard({ post, onComment, onDelete, onEdit, currentUse
           {canDelete && onDelete && (
             <button
               onClick={() => onDelete(post.id)}
-              className="p-1 hover:bg-red-500/20 rounded transition-colors"
+              className="p-1 hover:bg-orange-500/20 rounded transition-colors"
             >
-              <Trash2 className="w-4 h-4 text-red-400" />
+              <Trash2 className="w-4 h-4 text-orange-400" />
             </button>
           )}
         </div>
