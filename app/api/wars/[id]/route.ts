@@ -12,7 +12,7 @@ export async function GET(
   try {
     const { id } = await params
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     const { data: war, error } = await supabase
       .from('faction_wars')
@@ -48,7 +48,7 @@ export async function PATCH(
     }
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     // Check if user is admin
     const { data: user } = await supabase

@@ -17,7 +17,7 @@ export default async function AdminPage() {
   }
 
   const cookieStore = await cookies()
-  const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore })
+  const supabase = createServerComponentClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
   const { data: user } = await supabase
     .from('users')
     .select('*')

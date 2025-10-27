@@ -29,7 +29,7 @@ export async function GET(
   try {
     const { id } = await params
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     // Fetch all war logs for this war
     const { data: logs, error } = await supabase

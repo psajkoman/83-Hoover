@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import { Users, RefreshCw, Search } from 'lucide-react'
+import Image from 'next/image'
 
 interface DiscordMember {
   id: string
@@ -138,10 +139,12 @@ export default function DiscordMembersList() {
                 key={member.id}
                 className="flex items-center gap-3 p-3 bg-gray-800/30 hover:bg-gray-800/50 rounded-lg transition-colors"
               >
-                <img
-                  src={getAvatarUrl(member)}
-                  alt={member.username}
-                  className="w-10 h-10 rounded-full"
+                <Image 
+                  src={member.avatar || '/default-avatar.png'} 
+                  alt={`${member.username}'s avatar`}
+                  width={40}
+                  height={40}
+                  className="rounded-full"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate">

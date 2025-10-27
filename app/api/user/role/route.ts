@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     const { data: user } = await supabase
       .from('users')

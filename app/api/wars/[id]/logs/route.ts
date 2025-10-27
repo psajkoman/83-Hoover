@@ -12,7 +12,7 @@ export async function GET(
   try {
     const { id } = await params
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     const { data: logs, error } = await supabase
       .from('war_logs')
@@ -49,7 +49,7 @@ export async function POST(
     }
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     const { data: user } = await supabase
       .from('users')

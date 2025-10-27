@@ -19,7 +19,7 @@ export async function DELETE(
     }
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     // Check if user is admin
     const { data: user } = await supabase

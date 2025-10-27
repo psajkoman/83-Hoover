@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
+import { NextResponse, NextRequest } from 'next/server'
+import { authOptions } from '@/lib/auth'
+import { getServerSession } from 'next-auth'
+import { createServerClient, getSessionUser } from '@/lib/supabase/server-auth'
+
+type UserRole = Database['public']['Tables']['users']['Row']['role']
 
 // Admin client for database operations
 const supabaseAdmin = createClient<Database>(
@@ -12,24 +13,20 @@ const supabaseAdmin = createClient<Database>(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await getSessionUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Check if user is admin
-    const cookieStore = await cookies()
-    const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore })
-    const { data: user } = await supabase
+    const supabase = await createServerClient()
+    const { data: userData } = await supabase
       .from('users')
       .select('role')
-      .eq('discord_id', (session.user as any).discordId)
-      .single()
+      .eq('discord_id', user.user_metadata?.discord_id)
+      .single<{ role: UserRole }>()
 
-    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)) {
+    const allowedRoles: UserRole[] = ['ADMIN', 'LEADER', 'MODERATOR']
+    if (!userData?.role || !allowedRoles.includes(userData.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -122,9 +119,9 @@ export async function GET(request: NextRequest) {
       count: formattedMembers.length,
     })
   } catch (error) {
-    console.error('Error fetching Discord members:', error)
+    console.error('Error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch Discord members' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     )
   }

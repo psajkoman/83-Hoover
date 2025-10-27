@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import { Users, Sword, Shield, Activity, MapPin } from 'lucide-react'
 import DiscordMembersList from '@/components/admin/DiscordMembersList'
+import Link from 'next/link'
 
 interface ActivityLog {
   type: 'war' | 'log' | 'member' | 'turf'
@@ -183,24 +184,18 @@ export default function HomePage() {
           <Card variant="elevated">
             <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
             <div className="space-y-2">
-              <a
-                href="/turf"
-                className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white"
-              >
+              <Link href="/turf" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
                 🗺️ View Turf Map
-              </a>
-              <a
-                href="/wars"
-                className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white"
-              >
+              </Link>
+              <Link href="/wars" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
                 ⚔️ Active Wars
-              </a>
-              <a
-                href="/admin"
-                className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white"
-              >
+              </Link>
+              <Link href="/admin" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
                 👑 Member Management
-              </a>
+              </Link>
+              <Link href="/wars/" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
+                View Wars History
+              </Link>
             </div>
           </Card>
         </div>

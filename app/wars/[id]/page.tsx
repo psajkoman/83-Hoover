@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Card from '@/components/ui/Card'
@@ -9,6 +9,7 @@ import { Swords, Calendar, Plus, ArrowLeft, Trash2, Edit2, Image as ImageIcon } 
 import AddWarLogModal from '@/components/wars/AddWarLogModal'
 import WarRegulations from '@/components/wars/WarRegulations'
 import PlayerKillList from '@/components/wars/PlayerKillList'
+import Image from 'next/image'
 
 interface War {
   id: string
@@ -101,11 +102,7 @@ export default function WarDetailPage() {
   const hooverKills = pkList.filter(p => p.faction === 'HOOVER').reduce((sum, p) => sum + p.kill_count, 0)
   const enemyKills = pkList.filter(p => p.faction === 'ENEMY').reduce((sum, p) => sum + p.kill_count, 0)
 
-  useEffect(() => {
-    fetchWarDetails()
-  }, [params.id])
-
-  const fetchWarDetails = async () => {
+  const fetchWarDetails = useCallback(async () => {
     setIsLoading(true)
     try {
       const [warRes, logsRes, pkRes] = await Promise.all([
@@ -126,7 +123,11 @@ export default function WarDetailPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    fetchWarDetails()
+  }, [fetchWarDetails])
 
   const handleDeleteLog = async (logId: string) => {
     if (!confirm('Are you sure you want to delete this log?')) return
@@ -574,9 +575,11 @@ export default function WarDetailPage() {
                       placeholder="https://..."
                     />
                   ) : log.evidence_url ? (
-                    <img
-                      src={log.evidence_url}
+                    <Image 
+                      src={log.evidence_url} 
                       alt="Evidence"
+                      width={800}
+                      height={450}
                       className="rounded-lg max-w-full h-auto max-h-96 object-contain"
                     />
                   ) : null}

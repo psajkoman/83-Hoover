@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Skull, Plus, Trash2, User } from 'lucide-react'
+import Image from 'next/image'
 
 interface DiscordUser {
   id: string
@@ -50,12 +51,7 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string)
 
-  useEffect(() => {
-    fetchPKList()
-    fetchDiscordMembers()
-  }, [warId])
-
-  const fetchPKList = async () => {
+  const fetchPKList = useCallback(async () => {
     setIsLoading(true)
     try {
       const res = await fetch(`/api/wars/${warId}/pk-list`)
@@ -66,7 +62,7 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [warId])
 
   const fetchDiscordMembers = async () => {
     try {
@@ -84,12 +80,12 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
   }
 
   const getAvatarUrl = (user: { 
-    discord_id?: string;  // Changed from 'id' to 'discord_id'
+    discord_id?: string;  
     avatar: string | null; 
     discriminator: string 
   }) => {
     if (!user) return null
-    if (user.avatar && user.discord_id) {  // Added check for discord_id
+    if (user.avatar && user.discord_id) {  
       return `https://cdn.discordapp.com/avatars/${user.discord_id}/${user.avatar}.png?size=64`
     }
     if (user.discriminator === '0') {
@@ -152,7 +148,7 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
 
   const renderPlayer = (entry: PKEntry) => {
     const discordUser = entry.discord_user
-    const displayName = discordUser?.display_name || discordUser?.username || entry.player_name
+    const displayName = discordUser?.username || entry.player_name
     const avatarUrl = discordUser ? getAvatarUrl(discordUser) : null
  
     return (
@@ -162,10 +158,12 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {avatarUrl ? (
-            <img 
+            <Image 
               src={avatarUrl}
               alt={displayName}
-              className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+              width={40}
+              height={40}
+              className="rounded-full"
             />
           ) : (
             <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -200,6 +198,11 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
       </div>
     )
   }
+
+  useEffect(() => {
+    fetchPKList()
+    fetchDiscordMembers()
+  }, [fetchPKList, warId])
 
   return (
     <Card variant="elevated">
@@ -305,14 +308,16 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
                               setSearchQuery(member.nickname || member.username)
                             }}
                           >
-                            <img 
-                              src={getAvatarUrl(member)}
+                            <Image 
+                              src={member.avatar || '/default-avatar.png'}
                               alt={member.username}
-                              className="w-8 h-8 rounded-full"
+                              width={40}
+                              height={40}
+                              className="rounded-full"
                             />
                             <div className="min-w-0">
                               <div className="font-medium text-white truncate">
-                                {member.nickname || member.username}
+                                {member.username}
                               </div>
                               {member.nickname && (
                                 <div className="text-xs text-gray-400 truncate">

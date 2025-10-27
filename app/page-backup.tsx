@@ -4,6 +4,7 @@ import { Database } from '@/types/supabase'
 import Feed from '@/components/feed/Feed'
 import Card from '@/components/ui/Card'
 import { Users, TrendingUp, MapPin, Activity } from 'lucide-react'
+import Image from 'next/image'
 
 export default async function HomePage() {
   const supabase = createServerComponentClient<Database>({ cookies })
@@ -102,9 +103,11 @@ export default async function HomePage() {
                   <div key={user.id} className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gang-accent flex items-center justify-center">
                       {user.avatar ? (
-                        <img
+                        <Image
                           src={user.avatar}
                           alt={user.username}
+                          width={32}
+                          height={32}
                           className="w-8 h-8 rounded-full"
                         />
                       ) : (

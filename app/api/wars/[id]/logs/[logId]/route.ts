@@ -22,7 +22,7 @@ export async function PATCH(
     const { date_time, log_type, hoovers_involved, players_killed, notes, evidence_url } = body
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     const { data: user } = await supabase
       .from('users')
@@ -91,7 +91,7 @@ export async function DELETE(
     }
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
 
     const discordId = (session.user as any).discordId || (session.user as any).id
     console.log('Looking up user with discordId:', discordId)

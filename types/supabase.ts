@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      global_war_regulations: {
+        Row: {
+          id: string
+          attacking_cooldown_hours: number
+          pk_cooldown_type: string
+          pk_cooldown_days: number
+          max_participants: number
+          max_assault_rifles: number
+          weapon_restrictions: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          attacking_cooldown_hours: number
+          pk_cooldown_type: string
+          pk_cooldown_days: number
+          max_participants: number
+          max_assault_rifles: number
+          weapon_restrictions: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          attacking_cooldown_hours?: number
+          pk_cooldown_type?: string
+          pk_cooldown_days?: number
+          max_participants?: number
+          max_assault_rifles?: number
+          weapon_restrictions?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
       users: {
         Row: {
           id: string
@@ -258,6 +293,56 @@ export type Database = {
           description?: string | null
           faction?: string
           timestamp?: string
+        }
+      }
+      faction_wars: {
+        Row: {
+          id: string
+          enemy_faction: string
+          started_by: string
+          status: string
+          war_type: string
+          regulations: Json
+          attacking_cooldown_hours: number
+          pk_cooldown_type: string
+          pk_cooldown_days: number
+          max_participants: number
+          max_assault_rifles: number
+          weapon_restrictions: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          enemy_faction: string
+          started_by: string
+          status?: string
+          war_type: string
+          regulations: Json
+          attacking_cooldown_hours?: number
+          pk_cooldown_type?: string
+          pk_cooldown_days?: number
+          max_participants?: number
+          max_assault_rifles?: number
+          weapon_restrictions?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          enemy_faction?: string
+          started_by?: string
+          status?: string
+          war_type?: string
+          regulations?: Json
+          attacking_cooldown_hours?: number
+          pk_cooldown_type?: string
+          pk_cooldown_days?: number
+          max_participants?: number
+          max_assault_rifles?: number
+          weapon_restrictions?: string[]
+          created_at?: string
+          updated_at?: string
         }
       }
       webhook_configs: {

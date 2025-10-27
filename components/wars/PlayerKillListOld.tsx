@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Skull, Plus, Trash2, User } from 'lucide-react'
+import Image from 'next/image'
 
 interface PKEntry {
   id: string
@@ -60,11 +61,7 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string)
 
-  useEffect(() => {
-    fetchPKList()
-  }, [warId])
-
-  const fetchPKList = async () => {
+  const fetchPKList = useCallback(async () => {
     setIsLoading(true)
     try {
       const res = await fetch(`/api/wars/${warId}/pk-list`)
@@ -75,7 +72,11 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [warId])
+
+  useEffect(() => {
+    fetchPKList()
+  }, [fetchPKList, warId])
 
   const handleAddPlayer = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -144,10 +145,12 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {isInDiscord && avatarUrl ? (
-            <img 
+            <Image 
               src={avatarUrl} 
               alt={entry.player_name}
-              className="w-7 h-7 rounded-full flex-shrink-0"
+              width={28}
+              height={28}
+              className="rounded-full"
             />
           ) : isInDiscord ? (
             <div className="w-7 h-7 bg-gang-highlight rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
