@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { getServerSession } from 'next-auth'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 type UserRole = Database['public']['Tables']['users']['Row']['role']
 
 export async function GET() {
