@@ -16,8 +16,8 @@ export default async function AdminPage() {
     redirect('/auth/signin')
   }
 
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
+  const cookieStore = cookies()
+  const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore })
   const { data: user } = await supabase
     .from('users')
     .select('*')

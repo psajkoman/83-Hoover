@@ -7,7 +7,7 @@ import { Database } from '@/types/supabase'
 export async function GET() {
   try {
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 
     const { data: activities, error } = await supabase
       .from('activity_logs')
