@@ -25,7 +25,7 @@ interface WarLog {
   id: string
   date_time: string
   log_type: string
-  hoovers_involved: string[]
+  friends_involved: string[]
   players_killed: string[]
   notes: string | null
   evidence_url: string | null
@@ -57,14 +57,14 @@ export default function WarDetailPage() {
   const [editingLogId, setEditingLogId] = useState<string | null>(null)
   const [editFormData, setEditFormData] = useState<{
     log_type: string
-    hoovers_involved: string
+    friends_involved: string
     players_killed: string
     notes: string
     evidence_url: string
   } | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [discordMembers, setDiscordMembers] = useState<any[]>([])
-  const [showHooversDropdown, setShowHooversDropdown] = useState(false)
+  const [showFriendsDropdown, setShowFriendsDropdown] = useState(false)
   const [showPlayersDropdown, setShowPlayersDropdown] = useState(false)
 
   // Fetch user role
@@ -99,7 +99,7 @@ export default function WarDetailPage() {
     fetchDiscordMembers()
   }, [])
 
-  const hooverKills = pkList.filter(p => p.faction === 'HOOVER').reduce((sum, p) => sum + p.kill_count, 0)
+  const friendKills = pkList.filter(p => p.faction === 'FRIEND').reduce((sum, p) => sum + p.kill_count, 0)
   const enemyKills = pkList.filter(p => p.faction === 'ENEMY').reduce((sum, p) => sum + p.kill_count, 0)
 
   const fetchWarDetails = useCallback(async () => {
@@ -170,12 +170,12 @@ export default function WarDetailPage() {
     }).slice(0, 5)
   }
 
-  const handleHooversChange = (value: string) => {
+  const handleFriendsChange = (value: string) => {
     if (!editFormData) return
-    setEditFormData({ ...editFormData, hoovers_involved: value })
+    setEditFormData({ ...editFormData, friends_involved: value })
     const words = value.split(',')
     const lastWord = words[words.length - 1].trim()
-    setShowHooversDropdown(lastWord.length >= 2)
+    setShowFriendsDropdown(lastWord.length >= 2)
   }
 
   const handlePlayersChange = (value: string) => {
@@ -186,16 +186,16 @@ export default function WarDetailPage() {
     setShowPlayersDropdown(lastWord.length >= 2)
   }
 
-  const insertSuggestion = (field: 'hoovers' | 'players', suggestion: string) => {
+  const insertSuggestion = (field: 'friends' | 'players', suggestion: string) => {
     if (!editFormData) return
-    const currentValue = field === 'hoovers' ? editFormData.hoovers_involved : editFormData.players_killed
+    const currentValue = field === 'friends' ? editFormData.friends_involved : editFormData.players_killed
     const words = currentValue.split(',').map(w => w.trim())
     words[words.length - 1] = suggestion
     const newValue = words.join(', ')
     
-    if (field === 'hoovers') {
-      setEditFormData({ ...editFormData, hoovers_involved: newValue + ', ' })
-      setShowHooversDropdown(false)
+    if (field === 'friends') {
+      setEditFormData({ ...editFormData, friends_involved: newValue + ', ' })
+      setShowFriendsDropdown(false)
     } else {
       setEditFormData({ ...editFormData, players_killed: newValue + ', ' })
       setShowPlayersDropdown(false)
@@ -206,7 +206,7 @@ export default function WarDetailPage() {
     setEditingLogId(log.id)
     setEditFormData({
       log_type: log.log_type,
-      hoovers_involved: log.hoovers_involved.join(', '),
+      friends_involved: log.friends_involved.join(', '),
       players_killed: log.players_killed.join(', '),
       notes: log.notes || '',
       evidence_url: log.evidence_url || ''
@@ -222,7 +222,7 @@ export default function WarDetailPage() {
     if (!editFormData) return
 
     try {
-      const hooversArray = editFormData.hoovers_involved.split(',').map(n => n.trim()).filter(n => n)
+      const friendsArray = editFormData.friends_involved.split(',').map(n => n.trim()).filter(n => n)
       const playersArray = editFormData.players_killed.split(',').map(n => n.trim()).filter(n => n)
 
       const res = await fetch(`/api/wars/${params.id}/logs/${logId}`, {
@@ -231,7 +231,7 @@ export default function WarDetailPage() {
         body: JSON.stringify({
           date_time: dateTime,
           log_type: editFormData.log_type,
-          hoovers_involved: hooversArray,
+          friends_involved: friendsArray,
           players_killed: playersArray,
           notes: editFormData.notes || null,
           evidence_url: editFormData.evidence_url || null,
@@ -430,20 +430,20 @@ export default function WarDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="relative">
                   <h4 className="text-sm font-semibold text-gray-400 mb-2">
-                    Players Killed (83 Hoover)
+                    Players Killed (Low West Crew)
                   </h4>
                   {editingLogId === log.id && editFormData ? (
                     <>
                       <input
                         type="text"
-                        value={editFormData.hoovers_involved}
-                        onChange={(e) => handleHooversChange(e.target.value)}
-                        onBlur={() => setTimeout(() => setShowHooversDropdown(false), 200)}
+                        value={editFormData.friends_involved}
+                        onChange={(e) => handleFriendsChange(e.target.value)}
+                        onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
                         className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm"
                         placeholder="Start typing to see Discord suggestions..."
                       />
-                      {showHooversDropdown && (() => {
-                        const words = editFormData.hoovers_involved.split(',')
+                      {showFriendsDropdown && (() => {
+                        const words = editFormData.friends_involved.split(',')
                         const lastWord = words[words.length - 1].trim()
                         const suggestions = getFilteredMembers(lastWord)
                         return suggestions.length > 0 && (
@@ -455,7 +455,7 @@ export default function WarDetailPage() {
                                 <button
                                   key={member.id}
                                   type="button"
-                                  onClick={() => insertSuggestion('hoovers', serverName)}
+                                  onClick={() => insertSuggestion('friends', serverName)}
                                   className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
                                 >
                                   <div className="flex items-center gap-2">
@@ -474,7 +474,7 @@ export default function WarDetailPage() {
                     </>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {log.hoovers_involved.map((member, idx) => (
+                      {log.friends_involved.map((member, idx) => (
                         <span
                           key={idx}
                           className="px-3 py-1.5 bg-gang-accent/30 rounded-full text-sm text-white"

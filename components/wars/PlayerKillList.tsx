@@ -41,12 +41,12 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFaction, setSelectedFaction] = useState<'HOOVER' | 'ENEMY'>('ENEMY')
+  const [selectedFaction, setSelectedFaction] = useState<'FRIEND' | 'ENEMY'>('ENEMY')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [discordMembers, setDiscordMembers] = useState<DiscordUser[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
 
-  const hooverList = pkList.filter(p => p.faction === 'HOOVER').sort((a, b) => b.kill_count - a.kill_count)
+  const friendList = pkList.filter(p => p.faction === 'FRIEND').sort((a, b) => b.kill_count - a.kill_count)
   const enemyList = pkList.filter(p => p.faction === 'ENEMY').sort((a, b) => b.kill_count - a.kill_count)
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string)
@@ -172,7 +172,7 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
           )}
           <div className="min-w-0">
             <div className="text-sm font-medium text-white truncate">
-              {displayName}
+              {entry.player_name}
             </div>
             {discordUser?.username && (
               <div className="text-xs text-gray-400 truncate">
@@ -242,19 +242,19 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
             )}
           </div>
 
-          {/* 83 Hoovers */}
+          {/* Low West Crew */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gang-highlight">83 Hoovers</h4>
-              <span className="text-xs text-gray-500">{hooverList.length} killed</span>
+              <h4 className="text-sm font-semibold text-gang-highlight">Low West Crew</h4>
+              <span className="text-xs text-gray-500">{friendList.length} killed</span>
             </div>
-            {hooverList.length === 0 ? (
+            {friendList.length === 0 ? (
               <div className="text-center py-4 bg-gang-primary/20 rounded">
                 <p className="text-xs text-gray-500">No kills yet</p>
               </div>
             ) : (
               <div className="space-y-1 max-h-96 overflow-y-auto">
-                {hooverList.map(renderPlayer)}
+                {friendList.map(renderPlayer)}
               </div>
             )}
           </div>
@@ -273,11 +273,11 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
                 </label>
                 <select
                   value={selectedFaction}
-                  onChange={(e) => setSelectedFaction(e.target.value as 'HOOVER' | 'ENEMY')}
+                  onChange={(e) => setSelectedFaction(e.target.value as 'FRIEND' | 'ENEMY')}
                   className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
                 >
                   <option value="ENEMY">{enemyFaction}</option>
-                  <option value="HOOVER">83 Hoovers</option>
+                  <option value="FRIEND">Low West Crew</option>
                 </select>
               </div>
               <div className="mb-4">

@@ -57,6 +57,7 @@ export async function GET() {
           .map((member: any) => {
             // Use server nickname if available, otherwise fall back to username
             const displayName = member.nick || member.user.username;
+            console.log('member.roles', member.roles);
             
             return {
               discord_id: member.user.id,

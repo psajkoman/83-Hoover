@@ -92,7 +92,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
-          <span className="text-gang-highlight">83 Hoover</span> Faction Hub
+          <span className="text-gang-highlight">Low West Crew</span> Faction Hub
         </h1>
         <p className="text-gray-400 text-lg max-w-2xl mx-auto">
           Territory control, member activity, and war statistics

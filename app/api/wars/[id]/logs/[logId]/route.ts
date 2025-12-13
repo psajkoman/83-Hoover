@@ -19,7 +19,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { date_time, log_type, hoovers_involved, players_killed, notes, evidence_url } = body
+    const { date_time, log_type, friends_involved, players_killed, notes, evidence_url } = body
 
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
@@ -54,7 +54,7 @@ export async function PATCH(
       .update({
         date_time,
         log_type,
-        hoovers_involved,
+        friends_involved,
         players_killed,
         notes,
         evidence_url,

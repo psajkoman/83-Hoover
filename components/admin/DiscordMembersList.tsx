@@ -151,7 +151,7 @@ export default function DiscordMembersList() {
                     {member.nickname || member.username}
                   </p>
                   <p className="text-sm text-gray-400 truncate">
-                    {member.username}#{member.discriminator}
+                    {member.username}
                   </p>
                 </div>
                 <div className="text-xs text-gray-500">

@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "83 Hoover Criminals | Los Santos Roleplay",
-  description: "Official faction hub for 83 Hoover Criminals - GTA San Andreas RP Server",
-  keywords: "83 hoover, gta rp, los angeles rp, gang rp, faction hub",
+  title: "Low West Crew - GTA World",
+  description: "Official faction hub for Low West Crew - GTA World RP Server",
+  keywords: "low west, gta rp, los angeles rp, gang rp, faction hub, vespucci beach, venice beach",
 };
 
 export default function RootLayout({ children }) {

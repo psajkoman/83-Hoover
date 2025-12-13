@@ -62,11 +62,11 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { date_time, log_type, hoovers_involved, players_killed, notes, evidence_url } = body
+    const { date_time, log_type, friends_involved, players_killed, notes, evidence_url } = body
 
-    if (!date_time || !log_type || !hoovers_involved || !players_killed) {
+    if (!date_time || !log_type || !friends_involved || !players_killed) {
       return NextResponse.json(
-        { error: 'Date/time, log type, hoovers involved, and players killed are required' },
+        { error: 'Date/time, log type, friends involved, and players killed are required' },
         { status: 400 }
       )
     }
@@ -77,7 +77,7 @@ export async function POST(
         war_id: id,
         log_type: log_type || 'ATTACK',
         date_time,
-        hoovers_involved,
+        friends_involved,
         players_killed,
         notes: notes || null,
         evidence_url: evidence_url || null,

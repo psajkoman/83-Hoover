@@ -24,7 +24,7 @@ export default function AuthErrorPage() {
           
           <p className="text-gray-400 mb-6">
             {error === 'AccessDenied' 
-              ? 'You do not have permission to access this platform. Please ensure you are a member of the 83 Hoover Discord server.'
+              ? 'You do not have permission to access this platform. Please ensure you are a member of the Low West Crew Discord server.'
               : 'An error occurred during authentication. Please try again.'}
           </p>
 

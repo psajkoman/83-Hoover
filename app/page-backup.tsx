@@ -48,10 +48,10 @@ export default async function HomePage() {
       {/* Hero Section */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
-          Welcome to <span className="text-gang-highlight">83 Hoover</span>
+          Welcome to <span className="text-gang-highlight">Low West Crew</span>
         </h1>
         <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-          Official faction hub for the 83 Hoover Criminals. Stay connected with your crew,
+          Faction hub for the Low West Crew. Stay connected with your people,
           track territory, and share your RP moments.
         </p>
       </div>

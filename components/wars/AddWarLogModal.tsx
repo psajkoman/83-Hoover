@@ -27,13 +27,13 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
     date: '',
     time: '',
     log_type: 'ATTACK' as 'ATTACK' | 'DEFENSE',
-    hoovers_involved: '',
+    friends_involved: '',
     players_killed: '',
     notes: '',
     evidence_url: '',
   })
 
-  const [showHooversDropdown, setShowHooversDropdown] = useState(false)
+  const [showFriendsDropdown, setShowFriendsDropdown] = useState(false)
   const [showPlayersDropdown, setShowPlayersDropdown] = useState(false)
   const [cursorPosition, setCursorPosition] = useState(0)
 
@@ -67,12 +67,12 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
     }).slice(0, 5) // Limit to 5 suggestions
   }
 
-  const handleHooversChange = (value: string) => {
-    setFormData({ ...formData, hoovers_involved: value })
+  const handleFriendsChange = (value: string) => {
+    setFormData({ ...formData, friends_involved: value })
     // Get the last word being typed (after last comma)
     const words = value.split(',')
     const lastWord = words[words.length - 1].trim()
-    setShowHooversDropdown(lastWord.length >= 2)
+    setShowFriendsDropdown(lastWord.length >= 2)
   }
 
   const handlePlayersChange = (value: string) => {
@@ -83,15 +83,15 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
     setShowPlayersDropdown(lastWord.length >= 2)
   }
 
-  const insertSuggestion = (field: 'hoovers' | 'players', suggestion: string) => {
-    const currentValue = field === 'hoovers' ? formData.hoovers_involved : formData.players_killed
+  const insertSuggestion = (field: 'friends' | 'players', suggestion: string) => {
+    const currentValue = field === 'friends' ? formData.friends_involved : formData.players_killed
     const words = currentValue.split(',').map(w => w.trim())
     words[words.length - 1] = suggestion
     const newValue = words.join(', ')
     
-    if (field === 'hoovers') {
-      setFormData({ ...formData, hoovers_involved: newValue + ', ' })
-      setShowHooversDropdown(false)
+    if (field === 'friends') {
+      setFormData({ ...formData, friends_involved: newValue + ', ' })
+      setShowFriendsDropdown(false)
     } else {
       setFormData({ ...formData, players_killed: newValue + ', ' })
       setShowPlayersDropdown(false)
@@ -106,8 +106,8 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
       // Combine date and time
       const dateTime = new Date(`${formData.date}T${formData.time}`).toISOString()
 
-      // Parse hoovers and players killed (comma-separated)
-      const hooversArray = formData.hoovers_involved
+      // Parse friends and players killed (comma-separated)
+      const friendsArray = formData.friends_involved
         .split(',')
         .map((p) => p.trim())
         .filter((p) => p.length > 0)
@@ -132,11 +132,11 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
         })
       }
       
-      const invalidHoovers = validateNames(hooversArray)
+      const invalidFriends = validateNames(friendsArray)
       const invalidPlayers = validateNames(playersKilled)
       
-      if (invalidHoovers.length > 0 || invalidPlayers.length > 0) {
-        const allInvalid = [...invalidHoovers, ...invalidPlayers]
+      if (invalidFriends.length > 0 || invalidPlayers.length > 0) {
+        const allInvalid = [...invalidFriends, ...invalidPlayers]
         alert(`Invalid name format: ${allInvalid.join(', ')}\nMust be "Firstname Lastname" (e.g., "John Doe") or @DiscordName (e.g., @Davion)`)
         setIsLoading(false)
         return
@@ -148,7 +148,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
         body: JSON.stringify({
           date_time: dateTime,
           log_type: formData.log_type,
-          hoovers_involved: hooversArray,
+          friends_involved: friendsArray,
           players_killed: playersKilled,
           notes: formData.notes || null,
           evidence_url: formData.evidence_url || null,
@@ -243,24 +243,24 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
             </div>
           </div>
 
-          {/* 83 Hoovers Involved */}
+          {/* Low West Crew Involved */}
           <div className="relative">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               <Users className="w-4 h-4 inline mr-2" />
-              Players Killed (83 Hoover)
+              Players Killed (Low West Crew)
             </label>
             
             <Input
               type="text"
               placeholder="Start typing to see Discord suggestions..."
-              value={formData.hoovers_involved}
-              onChange={(e) => handleHooversChange(e.target.value)}
-              onBlur={() => setTimeout(() => setShowHooversDropdown(false), 200)}
+              value={formData.friends_involved}
+              onChange={(e) => handleFriendsChange(e.target.value)}
+              onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
               required
             />
             
-            {showHooversDropdown && (() => {
-              const words = formData.hoovers_involved.split(',')
+            {showFriendsDropdown && (() => {
+              const words = formData.friends_involved.split(',')
               const lastWord = words[words.length - 1].trim()
               const suggestions = getFilteredMembers(lastWord)
               return suggestions.length > 0 && (
@@ -272,7 +272,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
                       <button
                         key={member.id}
                         type="button"
-                        onClick={() => insertSuggestion('hoovers', serverName)}
+                        onClick={() => insertSuggestion('friends', serverName)}
                         className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
                       >
                         <div className="flex items-center gap-2">

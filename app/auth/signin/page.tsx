@@ -25,7 +25,7 @@ export default function SignInPage() {
             83
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Welcome to 83 Hoover
+            Welcome to Low West Crew
           </h1>
           <p className="text-gray-400">
             Sign in with Discord to access the faction hub
@@ -57,7 +57,7 @@ export default function SignInPage() {
 
           <div className="mt-6 text-center text-sm text-gray-400">
             <p>By signing in, you agree to our terms of service</p>
-            <p className="mt-2">You must be a member of the 83 Hoover Discord server</p>
+            <p className="mt-2">You must be a member of the Low West Crew Discord server</p>
           </div>
         </Card>
 

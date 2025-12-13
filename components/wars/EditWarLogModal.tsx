@@ -11,7 +11,7 @@ interface EditWarLogModalProps {
     id: string
     date_time: string
     log_type: string
-    hoovers_involved: string[]
+    friends_involved: string[]
     players_killed: string[]
     notes: string | null
     evidence_url: string | null
@@ -41,13 +41,13 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
     date: initialDate,
     time: initialTime,
     log_type: log.log_type as 'ATTACK' | 'DEFENSE',
-    hoovers_involved: log.hoovers_involved.join(', '),
+    friends_involved: log.friends_involved.join(', '),
     players_killed: log.players_killed.join(', '),
     notes: log.notes || '',
     evidence_url: log.evidence_url || '',
   })
 
-  const [showHooversDropdown, setShowHooversDropdown] = useState(false)
+  const [showFriendsDropdown, setShowFriendsDropdown] = useState(false)
   const [showPlayersDropdown, setShowPlayersDropdown] = useState(false)
 
   useEffect(() => {
@@ -80,12 +80,12 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
     }).slice(0, 5) // Limit to 5 suggestions
   }
 
-  const handleHooversChange = (value: string) => {
-    setFormData({ ...formData, hoovers_involved: value })
+  const handleFriendsChange = (value: string) => {
+    setFormData({ ...formData, friends_involved: value })
     // Get the last word being typed (after last comma)
     const words = value.split(',')
     const lastWord = words[words.length - 1].trim()
-    setShowHooversDropdown(lastWord.length >= 2)
+    setShowFriendsDropdown(lastWord.length >= 2)
   }
 
   const handlePlayersChange = (value: string) => {
@@ -96,15 +96,15 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
     setShowPlayersDropdown(lastWord.length >= 2)
   }
 
-  const insertSuggestion = (field: 'hoovers' | 'players', suggestion: string) => {
-    const currentValue = field === 'hoovers' ? formData.hoovers_involved : formData.players_killed
+  const insertSuggestion = (field: 'friends' | 'players', suggestion: string) => {
+    const currentValue = field === 'friends' ? formData.friends_involved : formData.players_killed
     const words = currentValue.split(',').map(w => w.trim())
     words[words.length - 1] = suggestion
     const newValue = words.join(', ')
     
-    if (field === 'hoovers') {
-      setFormData({ ...formData, hoovers_involved: newValue + ', ' })
-      setShowHooversDropdown(false)
+    if (field === 'friends') {
+      setFormData({ ...formData, friends_involved: newValue + ', ' })
+      setShowFriendsDropdown(false)
     } else {
       setFormData({ ...formData, players_killed: newValue + ', ' })
       setShowPlayersDropdown(false)
@@ -120,7 +120,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
       const dateTime = new Date(`${formData.date}T${formData.time}`).toISOString()
 
       // Parse comma-separated strings into arrays
-      const hooversArray = formData.hoovers_involved
+      const friendsArray = formData.friends_involved
         .split(',')
         .map((p) => p.trim())
         .filter((p) => p.length > 0)
@@ -145,11 +145,11 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
         })
       }
 
-      const invalidHoovers = validateNames(hooversArray)
+      const invalidFriends = validateNames(friendsArray)
       const invalidPlayers = validateNames(playersKilled)
 
-      if (invalidHoovers.length > 0 || invalidPlayers.length > 0) {
-        const allInvalid = [...invalidHoovers, ...invalidPlayers]
+      if (invalidFriends.length > 0 || invalidPlayers.length > 0) {
+        const allInvalid = [...invalidFriends, ...invalidPlayers]
         alert(`Invalid name format: ${allInvalid.join(', ')}\nMust be "Firstname Lastname" (e.g., "John Doe") or @DiscordName (e.g., @Davion)`)
         setIsLoading(false)
         return
@@ -161,7 +161,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
         body: JSON.stringify({
           date_time: dateTime,
           log_type: formData.log_type,
-          hoovers_involved: hooversArray,
+          friends_involved: friendsArray,
           players_killed: playersKilled,
           notes: formData.notes || null,
           evidence_url: formData.evidence_url || null,
@@ -256,24 +256,24 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
             </div>
           </div>
 
-          {/* 83 Hoovers Involved */}
+          {/* Low West Crew Involved */}
           <div className="relative">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               <Users className="w-4 h-4 inline mr-2" />
-              Players Killed (83 Hoover)
+              Players Killed (Low West Crew)
             </label>
             
             <Input
               type="text"
               placeholder="Start typing to see Discord suggestions..."
-              value={formData.hoovers_involved}
-              onChange={(e) => handleHooversChange(e.target.value)}
-              onBlur={() => setTimeout(() => setShowHooversDropdown(false), 200)}
+              value={formData.friends_involved}
+              onChange={(e) => handleFriendsChange(e.target.value)}
+              onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
               required
             />
             
-            {showHooversDropdown && (() => {
-              const words = formData.hoovers_involved.split(',')
+            {showFriendsDropdown && (() => {
+              const words = formData.friends_involved.split(',')
               const lastWord = words[words.length - 1].trim()
               const suggestions = getFilteredMembers(lastWord)
               return suggestions.length > 0 && (
@@ -285,7 +285,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
                       <button
                         key={member.id}
                         type="button"
-                        onClick={() => insertSuggestion('hoovers', serverName)}
+                        onClick={() => insertSuggestion('friends', serverName)}
                         className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
                       >
                         <div className="flex items-center gap-2">

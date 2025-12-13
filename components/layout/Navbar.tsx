@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User, Swords } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 import Button from '../ui/Button'
+import Image from 'next/image'
 
 export default function Navbar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [guildIconUrl, setGuildIconUrl] = useState<string | null>(null)
+  const [guildName, setGuildName] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
 
   const navItems = [
     { href: '/', label: 'Feed', icon: Home },
@@ -22,18 +26,58 @@ export default function Navbar() {
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role)
 
+  useEffect(() => {
+    const fetchGuildIcon = async () => {
+      try {
+        const res = await fetch('/api/discord/guild')
+        const data = await res.json()
+        if (res.ok) {
+          if (data?.iconUrl) setGuildIconUrl(data.iconUrl)
+          if (data?.name) setGuildName(data.name)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    fetchGuildIcon()
+  }, [])
+
+  useEffect(() => {
+    const fetchDisplayName = async () => {
+      if (!session) {
+        setDisplayName(null)
+        return
+      }
+
+      try {
+        const res = await fetch('/api/user/me')
+        const data = await res.json()
+        if (res.ok && data?.displayName) setDisplayName(data.displayName)
+      } catch {
+        // ignore
+      }
+    }
+
+    fetchDisplayName()
+  }, [session])
+
   return (
     <nav className="bg-gang-secondary/90 backdrop-blur-md border-b border-gang-accent/30 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gang-highlight rounded-lg flex items-center justify-center font-bold text-white text-xl">
-              83
+            <div className="w-10 h-10 bg-gang-highlight rounded-lg flex items-center justify-center overflow-hidden">
+              {guildIconUrl ? (
+                <Image src={guildIconUrl} alt="Discord server icon" width={40} height={40} />
+              ) : (
+                <div className="font-bold text-white text-xl">1</div>
+              )}
             </div>
             <div className="hidden sm:block">
-              <div className="text-white font-bold text-lg">83 Hoover Criminals</div>
-              <div className="text-gang-gold text-xs">Los Santos Roleplay</div>
+              <div className="text-white font-bold text-lg">{guildName || 'Low West Crew'}</div>
+              <div className="text-gang-gold text-xs">GTA World</div>
             </div>
           </Link>
 
@@ -71,7 +115,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <User className="w-4 h-4" />
-                  <span className="text-sm text-white">{session.user?.name}</span>
+                  <span className="text-sm text-white">{displayName || session.user?.name}</span>
                 </Link>
                 <Button
                   variant="ghost"

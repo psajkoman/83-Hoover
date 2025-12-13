@@ -15,7 +15,7 @@ interface DiscordUser {
 // Update the PK map type to include the full Discord user object
 const pkMap = new Map<string, { 
   player_name: string
-  faction: 'ENEMY' | 'HOOVER'
+  faction: 'ENEMY' | 'FRIEND'
   kill_count: number
   last_killed_at: string
   discord_user: DiscordUser | null
@@ -43,7 +43,7 @@ export async function GET(
     // Calculate PK list from logs
     const pkMap = new Map<string, { 
       player_name: string
-      faction: 'ENEMY' | 'HOOVER'
+      faction: 'ENEMY' | 'FRIEND'
       kill_count: number
       last_killed_at: string
       discord_user: {
@@ -89,10 +89,10 @@ export async function GET(
         }
       }
 
-      // Add our hoovers involved (for all log types)
-      for (const hooverName of log.hoovers_involved || []) {
-        const cleanName = hooverName.startsWith('@') ? hooverName.substring(1) : hooverName
-        const key = `HOOVER:${cleanName}`
+      // Add our friends involved (for all log types)
+      for (const friendName of log.friends_involved || []) {
+        const cleanName = friendName.startsWith('@') ? friendName.substring(1) : friendName
+        const key = `FRIEND:${cleanName}`
         
         if (pkMap.has(key)) {
           const entry = pkMap.get(key)!
@@ -101,7 +101,7 @@ export async function GET(
             entry.last_killed_at = log.date_time
           }
         } else {
-          // Find Discord user for this Hoover
+          // Find Discord user for this Friend
           let discordUser = null
           
           // Only try to find Discord user if the name looks like a valid Discord username
@@ -116,7 +116,7 @@ export async function GET(
 
           pkMap.set(key, {
             player_name: cleanName,
-            faction: 'HOOVER',
+            faction: 'FRIEND',
             kill_count: 1,
             last_killed_at: log.date_time,
             discord_user: discordUser
