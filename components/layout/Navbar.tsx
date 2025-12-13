@@ -115,7 +115,22 @@ export default function Navbar() {
                   href="/profile"
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
                 >
-                  <User className="w-4 h-4" />
+                  {session.user?.image ? (
+                    <div className="w-6 h-6 rounded-full overflow-hidden">
+                      <Image 
+                        src={session.user.image} 
+                        alt="Profile" 
+                        width={24} 
+                        height={24} 
+                        className="w-full h-full object-cover"
+                        unoptimized={session.user.image.includes('cdn.discordapp.com')}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gang-highlight flex items-center justify-center">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                  )}
                   <span className="text-sm text-white">{displayName || session.user?.name}</span>
                 </Link>
                 <Button

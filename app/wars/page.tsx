@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Card from '@/components/ui/Card'
 import { Swords, Calendar, Users, TrendingUp } from 'lucide-react'
+import { createWarSlug } from '@/lib/warSlug'
 
 interface War {
   id: string
+  slug?: string
   enemy_faction: string
   status: string
   started_at: string
@@ -139,7 +141,7 @@ export default function WarsPage() {
             <Card
               key={war.id}
               className="cursor-pointer hover:border-gang-highlight transition-all"
-              onClick={() => router.push(`/wars/${war.id}`)}
+              onClick={() => router.push(`/wars/${war.slug || createWarSlug(war.enemy_faction, war.started_at) || war.id}`)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">

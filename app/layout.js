@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
+import ActiveWarBanner from "@/components/layout/ActiveWarBanner";
 import Providers from "./providers";
 
 const inter = Inter({
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
       <body className={inter.variable}>
         <Providers>
           <Navbar />
+          <ActiveWarBanner />
           <main className="min-h-screen">
             {children}
           </main>

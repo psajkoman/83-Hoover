@@ -49,6 +49,7 @@ export default function WarDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { data: session } = useSession()
+  const warParam = params.id as string
   const [war, setWar] = useState<War | null>(null)
   const [logs, setLogs] = useState<WarLog[]>([])
   const [pkList, setPkList] = useState<any[]>([])
@@ -106,9 +107,9 @@ export default function WarDetailPage() {
     setIsLoading(true)
     try {
       const [warRes, logsRes, pkRes] = await Promise.all([
-        fetch(`/api/wars/${params.id}`),
-        fetch(`/api/wars/${params.id}/logs`),
-        fetch(`/api/wars/${params.id}/pk-list`),
+        fetch(`/api/wars/${warParam}`),
+        fetch(`/api/wars/${warParam}/logs`),
+        fetch(`/api/wars/${warParam}/pk-list`),
       ])
 
       const warData = await warRes.json()
@@ -123,7 +124,7 @@ export default function WarDetailPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [params.id])
+  }, [warParam])
 
   useEffect(() => {
     fetchWarDetails()
@@ -133,7 +134,7 @@ export default function WarDetailPage() {
     if (!confirm('Are you sure you want to delete this log?')) return
 
     try {
-      const res = await fetch(`/api/wars/${params.id}/logs/${logId}`, {
+      const res = await fetch(`/api/wars/${warParam}/logs/${logId}`, {
         method: 'DELETE',
       })
 
@@ -225,7 +226,7 @@ export default function WarDetailPage() {
       const friendsArray = editFormData.friends_involved.split(',').map(n => n.trim()).filter(n => n)
       const playersArray = editFormData.players_killed.split(',').map(n => n.trim()).filter(n => n)
 
-      const res = await fetch(`/api/wars/${params.id}/logs/${logId}`, {
+      const res = await fetch(`/api/wars/${warParam}/logs/${logId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -323,7 +324,7 @@ export default function WarDetailPage() {
         {war.regulations && (
           <WarRegulations warType={war.war_type} regulations={war.regulations} />
         )}
-        <PlayerKillList warId={params.id as string} enemyFaction={war.enemy_faction} />
+        <PlayerKillList warId={warParam} enemyFaction={war.enemy_faction} />
       </div>
 
       {/* War Logs */}
@@ -593,7 +594,7 @@ export default function WarDetailPage() {
       {/* Add Log Modal */}
       {showAddModal && (
         <AddWarLogModal
-          warId={params.id as string}
+          warId={warParam}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false)

@@ -8,6 +8,7 @@ import StartWarModal from './StartWarModal'
 
 interface War {
   id: string
+  slug?: string
   enemy_faction: string
   status: string
   started_at: string
@@ -102,7 +103,7 @@ export default function WarManagement() {
               <Button
                 size="sm"
                 variant="danger"
-                onClick={() => handleEndWar(war.id)}
+                onClick={() => handleEndWar(war.slug || war.id)}
               >
                 End War
               </Button>

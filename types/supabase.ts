@@ -302,6 +302,9 @@ export type Database = {
           started_by: string
           status: string
           war_type: string
+          slug?: string | null
+          started_at?: string
+          ended_at?: string | null
           regulations: Json
           attacking_cooldown_hours: number
           pk_cooldown_type: string
@@ -318,6 +321,9 @@ export type Database = {
           started_by: string
           status?: string
           war_type: string
+          slug?: string | null
+          started_at?: string
+          ended_at?: string | null
           regulations: Json
           attacking_cooldown_hours?: number
           pk_cooldown_type?: string
@@ -334,6 +340,9 @@ export type Database = {
           started_by?: string
           status?: string
           war_type?: string
+          slug?: string | null
+          started_at?: string
+          ended_at?: string | null
           regulations?: Json
           attacking_cooldown_hours?: number
           pk_cooldown_type?: string

@@ -3,6 +3,7 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { createWarSlug } from '@/lib/warSlug'
 
 type War = Database['public']['Tables']['faction_wars']['Row']
 
@@ -103,6 +104,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const startedAt = new Date().toISOString()
+    const slug = createWarSlug(enemy_faction, startedAt)
+
     // Using a type assertion to bypass the type error
     // The proper fix would be to regenerate the Supabase types
     const { data: war, error } = await (supabase as any)
@@ -111,6 +115,8 @@ export async function POST(request: NextRequest) {
         enemy_faction,
         started_by: user.id,
         status: 'ACTIVE',
+        started_at: startedAt,
+        slug,
         war_type: war_type || 'UNCONTROLLED',
         regulations: warRegulations,
       })

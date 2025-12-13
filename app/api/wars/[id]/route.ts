@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { isUuid } from '@/lib/warSlug'
 
 export async function GET(
   request: NextRequest,
@@ -14,14 +15,32 @@ export async function GET(
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
-    const { data: war, error } = await supabase
+    let warId = id
+    if (!isUuid(id)) {
+      const { data: warBySlug, error: warBySlugError } = await supabase
+        .from('faction_wars')
+        .select('id')
+        .eq('slug', id)
+        .single()
+
+      if (warBySlugError) throw warBySlugError
+      if (!warBySlug) {
+        return NextResponse.json({ error: 'War not found' }, { status: 404 })
+      }
+      warId = warBySlug.id
+    }
+
+    const warQuery = supabase
       .from('faction_wars')
       .select(`
         *,
         started_by_user:users!faction_wars_started_by_fkey(username, discord_id)
       `)
-      .eq('id', id)
-      .single()
+
+    const { data: war, error } = await (isUuid(id)
+      ? warQuery.eq('id', warId)
+      : warQuery.eq('slug', id)
+    ).single()
 
     if (error) throw error
 
@@ -50,6 +69,21 @@ export async function PATCH(
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
+    let warId = id
+    if (!isUuid(id)) {
+      const { data: warBySlug, error: warBySlugError } = await supabase
+        .from('faction_wars')
+        .select('id')
+        .eq('slug', id)
+        .single()
+
+      if (warBySlugError) throw warBySlugError
+      if (!warBySlug) {
+        return NextResponse.json({ error: 'War not found' }, { status: 404 })
+      }
+      warId = warBySlug.id
+    }
+
     // Check if user is admin
     const { data: user } = await supabase
       .from('users')
@@ -75,7 +109,7 @@ export async function PATCH(
     const { data: war, error } = await supabase
       .from('faction_wars')
       .update(updateData)
-      .eq('id', id)
+      .eq('id', warId)
       .select()
       .single()
 

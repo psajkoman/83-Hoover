@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { isUuid } from '@/lib/warSlug'
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +15,21 @@ export async function GET(
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
+    let warId = id
+    if (!isUuid(id)) {
+      const { data: warBySlug, error: warBySlugError } = await supabase
+        .from('faction_wars')
+        .select('id')
+        .eq('slug', id)
+        .single()
+
+      if (warBySlugError) throw warBySlugError
+      if (!warBySlug) {
+        return NextResponse.json({ error: 'War not found' }, { status: 404 })
+      }
+      warId = warBySlug.id
+    }
+
     const { data: logs, error } = await supabase
       .from('war_logs')
       .select(`
@@ -21,7 +37,7 @@ export async function GET(
         submitted_by_user:users!war_logs_submitted_by_fkey(username, discord_id, avatar),
         edited_by_user:users!war_logs_edited_by_fkey(username, discord_id, avatar)
       `)
-      .eq('war_id', id)
+      .eq('war_id', warId)
       .order('date_time', { ascending: false })
 
     if (error) throw error
@@ -51,6 +67,21 @@ export async function POST(
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
+    let warId = id
+    if (!isUuid(id)) {
+      const { data: warBySlug, error: warBySlugError } = await supabase
+        .from('faction_wars')
+        .select('id')
+        .eq('slug', id)
+        .single()
+
+      if (warBySlugError) throw warBySlugError
+      if (!warBySlug) {
+        return NextResponse.json({ error: 'War not found' }, { status: 404 })
+      }
+      warId = warBySlug.id
+    }
+
     const { data: user } = await supabase
       .from('users')
       .select('id')
@@ -74,7 +105,7 @@ export async function POST(
     const { data: log, error } = await supabase
       .from('war_logs')
       .insert({
-        war_id: id,
+        war_id: warId,
         log_type: log_type || 'ATTACK',
         date_time,
         friends_involved,

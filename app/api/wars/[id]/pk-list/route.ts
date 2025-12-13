@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
+import { isUuid } from '@/lib/warSlug'
 
 interface DiscordUser {
   id: string
@@ -31,11 +32,26 @@ export async function GET(
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
+    let warId = id
+    if (!isUuid(id)) {
+      const { data: warBySlug, error: warBySlugError } = await supabase
+        .from('faction_wars')
+        .select('id')
+        .eq('slug', id)
+        .single()
+
+      if (warBySlugError) throw warBySlugError
+      if (!warBySlug) {
+        return NextResponse.json({ error: 'War not found' }, { status: 404 })
+      }
+      warId = warBySlug.id
+    }
+
     // Fetch all war logs for this war
     const { data: logs, error } = await supabase
       .from('war_logs')
       .select('*')
-      .eq('war_id', id)
+      .eq('war_id', warId)
       .order('date_time', { ascending: false })
 
     if (error) throw error
