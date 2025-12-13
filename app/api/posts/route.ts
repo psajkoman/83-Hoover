@@ -78,6 +78,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    if (type === 'ANNOUNCEMENT' && !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role || '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { data: post, error } = await supabase
       .from('posts')
       .insert({

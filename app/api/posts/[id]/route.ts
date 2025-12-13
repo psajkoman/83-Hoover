@@ -71,10 +71,16 @@ export async function PATCH(
       .eq('discord_id', session.user.id)
       .single()
 
+    const isPrivileged = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user?.role || '')
+
+    if (post.type === 'ANNOUNCEMENT' && !isPrivileged) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     // Check permissions
     if (
       post.author.discord_id !== session.user.id &&
-      !['ADMIN', 'LEADER', 'MODERATOR'].includes(user?.role || '')
+      !isPrivileged
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -131,10 +137,16 @@ export async function DELETE(
       .eq('discord_id', session.user.id)
       .single()
 
+    const isPrivileged = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user?.role || '')
+
+    if (post.type === 'ANNOUNCEMENT' && !isPrivileged) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     // Check permissions
     if (
       post.author.discord_id !== session.user.id &&
-      !['ADMIN', 'LEADER', 'MODERATOR'].includes(user?.role || '')
+      !isPrivileged
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

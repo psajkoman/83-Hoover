@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Upload, X } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
@@ -22,6 +23,27 @@ export default function CreatePostModal({ isOpen, onClose, onSuccess }: CreatePo
   })
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [role, setRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const res = await fetch('/api/user/role')
+        const data = await res.json()
+        if (res.ok) {
+          setRole(data?.role || 'MEMBER')
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (isOpen) {
+      fetchRole()
+    }
+  }, [isOpen])
+
+  const canCreateAnnouncements = role ? ['ADMIN', 'LEADER', 'MODERATOR'].includes(role) : false
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,7 +114,7 @@ export default function CreatePostModal({ isOpen, onClose, onSuccess }: CreatePo
             required
           >
             <option value="GENERAL">General</option>
-            <option value="ANNOUNCEMENT">Announcement</option>
+            {canCreateAnnouncements ? <option value="ANNOUNCEMENT">Announcement</option> : null}
             <option value="SCREENSHOT">Screenshot</option>
             <option value="WORD_ON_STREET">Word on Street</option>
             <option value="ATTACK_LOG">Attack Log</option>

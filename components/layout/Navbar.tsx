@@ -84,6 +84,7 @@ export default function Navbar() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
+              if (!session) return null
               if (item.adminOnly && !isAdmin) return null
               
               const Icon = item.icon
@@ -153,6 +154,7 @@ export default function Navbar() {
         <div className="md:hidden border-t border-gang-accent/30 bg-gang-secondary">
           <div className="px-4 py-3 space-y-1">
             {navItems.map((item) => {
+              if (!session && item.href !== '/') return null
               if (item.adminOnly && !isAdmin) return null
               
               const Icon = item.icon
