@@ -1,34 +1,18 @@
-import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
 import { getServerSession } from 'next-auth'
-import { createServerClient, getSessionUser } from '@/lib/supabase/server-auth'
+import { supabaseAdmin } from '@/lib/supabase/server'
 
 type UserRole = Database['public']['Tables']['users']['Row']['role']
 
-// Admin client for database operations
-const supabaseAdmin = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function GET() {
   try {
-    const user = await getSessionUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const supabase = await createServerClient()
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('discord_id', user.user_metadata?.discord_id)
-      .single<{ role: UserRole }>()
-
-    const allowedRoles: UserRole[] = ['ADMIN', 'LEADER', 'MODERATOR']
-    if (!userData?.role || !allowedRoles.includes(userData.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const discordId = (session.user as any).discordId
+    if (!discordId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const guildId = process.env.DISCORD_GUILD_ID
     const botToken = process.env.DISCORD_BOT_TOKEN

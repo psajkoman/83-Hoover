@@ -9,7 +9,7 @@ import { authOptions } from '@/lib/auth'
 export async function GET() {
   try {
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
     const { data: regulations, error } = await supabase
       .from('global_war_regulations')
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient<Database>({ cookies: () => Promise.resolve(cookieStore) })
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
     // Check if user is admin
     const { data: user } = await supabase

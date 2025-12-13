@@ -6,7 +6,8 @@ import { pusherServer, PUSHER_CHANNELS, PUSHER_EVENTS } from '@/lib/pusher'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
     const body = await request.json()
     
     // Verify webhook secret

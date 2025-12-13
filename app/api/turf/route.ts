@@ -6,7 +6,8 @@ import { pusherServer, PUSHER_CHANNELS, PUSHER_EVENTS } from '@/lib/pusher'
 
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
     
     const { data: zones, error } = await supabase
       .from('turf_zones')
@@ -30,7 +31,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
     
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -78,7 +80,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
     
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {

@@ -140,7 +140,7 @@ export default function DiscordMembersList() {
                 className="flex items-center gap-3 p-3 bg-gray-800/30 hover:bg-gray-800/50 rounded-lg transition-colors"
               >
                 <Image 
-                  src={member.avatar || '/default-avatar.png'} 
+                  src={getAvatarUrl(member) || '/default-avatar.png'} 
                   alt={`${member.username}'s avatar`}
                   width={40}
                   height={40}

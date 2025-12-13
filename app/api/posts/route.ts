@@ -6,7 +6,8 @@ import { pusherServer, PUSHER_CHANNELS, PUSHER_EVENTS } from '@/lib/pusher'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies: cookies })
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
     
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {

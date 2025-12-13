@@ -21,6 +21,7 @@ export default function WarsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'active' | 'ended'>('active')
 
+
   useEffect(() => {
     fetchWars()
   }, [])
@@ -29,9 +30,18 @@ export default function WarsPage() {
     setIsLoading(true)
     try {
       const [activeRes, endedRes] = await Promise.all([
-        fetch('/api/wars?status=ACTIVE'),
-        fetch('/api/wars?status=ENDED'),
+        fetch('/api/wars?status=ACTIVE', { 
+          credentials: 'include'  // This is needed to include cookies
+        }),
+        fetch('/api/wars?status=ENDED', { 
+          credentials: 'include'  // This is needed to include cookies
+        }),
       ])
+
+
+      if (!activeRes.ok || !endedRes.ok) {
+        throw new Error('Failed to fetch wars')
+      }
 
       const activeData = await activeRes.json()
       const endedData = await endedRes.json()
@@ -40,6 +50,7 @@ export default function WarsPage() {
       setEndedWars(endedData.wars || [])
     } catch (error) {
       console.error('Error fetching wars:', error)
+      // Handle error (e.g., show error message to user)
     } finally {
       setIsLoading(false)
     }

@@ -1,24 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getRouteSupabase, verifySession } from '@/lib/supabase/route-utils'
 import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { supabaseAdmin } from '@/lib/supabase/server'
 
 type War = Database['public']['Tables']['faction_wars']['Row']
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await verifySession()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const supabase = await getRouteSupabase()
-    const { data: wars, error } = await supabase
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+
+    let query = supabaseAdmin
       .from('faction_wars')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return NextResponse.json(wars)
+    if (status) {
+      query = query.eq('status', status as any)
+    }
+
+    const { data: wars, error } = await query
+
+    if (error) {
+      console.error('Error fetching wars:', error)
+      return NextResponse.json(
+        { error: error.message || 'Failed to fetch wars' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ wars: wars || [] })
   } catch (error) {
     console.error('Error fetching wars:', error)
     return NextResponse.json(
@@ -36,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = await getRouteSupabase()
+    const supabase = supabaseAdmin
 
     // Check if user is admin
     const { data: user } = await supabase
