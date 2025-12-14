@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('faction_wars')
-      .select('*')
+      .select(`
+        *,
+        war_logs:war_logs(count)
+      `)
       .order('created_at', { ascending: false })
 
     if (status) {
