@@ -10,6 +10,8 @@ declare module 'next-auth' {
       role?: string
       discordId?: string
       username?: string
+      discriminator?: string
+      avatar?: string
     }
   }
 
@@ -18,6 +20,9 @@ declare module 'next-auth' {
     role?: string
     discordId?: string
     username?: string
+    discriminator?: string
+    avatar?: string
+    email?: string | null
   }
 
   interface Profile {
@@ -33,5 +38,8 @@ declare module 'next-auth/jwt' {
   interface JWT {
     discordId?: string
     username?: string
+    discriminator?: string
+    avatar?: string
+    role?: string
   }
 }

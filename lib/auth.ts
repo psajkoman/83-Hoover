@@ -3,6 +3,7 @@
 // Keep this file for backward compatibility with existing NextAuth routes
 
 import { NextAuthOptions } from 'next-auth'
+import type { JWT } from 'next-auth/jwt'
 import DiscordProvider from 'next-auth/providers/discord'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
@@ -11,6 +12,8 @@ const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// Using Database type from @/types/supabase for type safety
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || 'development-secret-change-in-production',
@@ -33,7 +36,7 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile }: { token: JWT; account?: any; profile?: any }) {
       if (account && profile) {
         token.discordId = profile.id as string
         token.username = profile.username as string
@@ -41,12 +44,38 @@ export const authOptions: NextAuthOptions = {
         token.discriminator = profile.discriminator as string
         token.email = profile.email as string
       }
+      if (token.discordId && !token.role) {
+        try {
+          const { data: user, error } = await supabaseAdmin
+            .from('users')
+            .select('role')
+            .eq('discord_id', token.discordId)
+            .single<{ role: 'ADMIN' | 'LEADER' | 'MODERATOR' | 'MEMBER' | 'GUEST' }>();
+          
+          if (error) throw error;
+          token.role = user?.role || 'MEMBER';
+        } catch {
+          token.role = 'MEMBER';
+        }
+      }
       return token
     },
     async session({ session, token }) {
       if (session.user && token) {
         session.user.discordId = token.discordId as string | undefined
         session.user.username = token.username as string | undefined
+        session.user.discriminator = token.discriminator as string | undefined
+        session.user.avatar = token.avatar as string | undefined
+        session.user.role = token.role
+
+        // Prefer a real Discord avatar if present; otherwise fall back to default embed avatar.
+        if (token.discordId && token.avatar) {
+          session.user.image = `https://cdn.discordapp.com/avatars/${token.discordId}/${token.avatar}.png?size=128`
+        } else {
+          const disc = Number(token.discriminator)
+          const index = Number.isFinite(disc) ? disc % 5 : 0
+          session.user.image = `https://cdn.discordapp.com/embed/avatars/${index}.png`
+        }
       }
       return session
     },

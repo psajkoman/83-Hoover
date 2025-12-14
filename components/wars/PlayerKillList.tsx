@@ -50,6 +50,7 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
   const enemyList = pkList.filter(p => p.faction === 'ENEMY').sort((a, b) => b.kill_count - a.kill_count)
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string)
+  console.log('isAdmin', session);
 
   const fetchPKList = useCallback(async () => {
     setIsLoading(true)
@@ -229,7 +230,9 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-orange-400">{enemyFaction}</h4>
-              <span className="text-xs text-gray-500">{enemyList.length} killed</span>
+              <span className="text-xs text-gray-500">
+                  {enemyList.reduce((sum, player) => sum + (player.kill_count || 1), 0)} deaths
+              </span>
             </div>
             {enemyList.length === 0 ? (
               <div className="text-center py-4 bg-gang-primary/20 rounded">
@@ -246,7 +249,9 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-gang-highlight">Low West Crew</h4>
-              <span className="text-xs text-gray-500">{friendList.length} killed</span>
+              <span className="text-xs text-gray-500">
+                {friendList.reduce((sum, player) => sum + (player.kill_count || 1), 0)} deaths
+              </span>
             </div>
             {friendList.length === 0 ? (
               <div className="text-center py-4 bg-gang-primary/20 rounded">

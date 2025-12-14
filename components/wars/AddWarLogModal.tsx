@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { X, Calendar, Users, Skull, FileText, Image as ImageIcon } from 'lucide-react'
+import { format, parse } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { useSession } from 'next-auth/react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -22,10 +25,27 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
   const [isLoading, setIsLoading] = useState(false)
   const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([])
   const [loadingMembers, setLoadingMembers] = useState(true)
+  const { data: session } = useSession()
+
+  const getCurrentServerTime = () => {
+    const now = new Date();
+    return toZonedTime(now.toISOString(), 'Europe/London');
+  }
+
+  const isFutureDateTime = (dateStr: string, timeStr: string) => {
+  const serverTime = getCurrentServerTime();
+  const serverDate = format(serverTime, 'yyyy-MM-dd');
+  const serverTimeStr = format(serverTime, 'HH:mm');
+  
+  if (dateStr > serverDate) return true;
+  if (dateStr === serverDate && timeStr > serverTimeStr) return true;
+  
+  return false;
+};
   
   const [formData, setFormData] = useState({
-    date: '',
-    time: '',
+    date: format(getCurrentServerTime(), 'yyyy-MM-dd'),
+    time: format(getCurrentServerTime(), 'HH:mm'),
     log_type: 'ATTACK' as 'ATTACK' | 'DEFENSE',
     friends_involved: '',
     players_killed: '',
@@ -100,6 +120,16 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Combine date and time in London timezone
+    const serverDateTime = parse(
+      `${formData.date} ${formData.time}`,
+      'yyyy-MM-dd HH:mm',
+      new Date()
+    );
+    
+    const utcDateTime = fromZonedTime(serverDateTime, 'Europe/London');
+    
+    const timestamp = utcDateTime.toISOString()
     setIsLoading(true)
 
     try {
@@ -137,33 +167,88 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
       
       if (invalidFriends.length > 0 || invalidPlayers.length > 0) {
         const allInvalid = [...invalidFriends, ...invalidPlayers]
-        alert(`Invalid name format: ${allInvalid.join(', ')}\nMust be "Firstname Lastname" (e.g., "John Doe") or @DiscordName (e.g., @Davion)`)
+        alert(`Invalid name format: ${allInvalid.join(', ')}\\nMust be "Firstname Lastname" (e.g., "John Doe") or @DiscordName (e.g., @Davion)`)
         setIsLoading(false)
         return
       }
 
+      // First, submit the log to your API
       const res = await fetch(`/api/wars/${warId}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date_time: dateTime,
+          date_time: timestamp,
           log_type: formData.log_type,
-          friends_involved: friendsArray,
-          players_killed: playersKilled,
-          notes: formData.notes || null,
-          evidence_url: formData.evidence_url || null,
+          friends_involved: friendsArray,  // Use the parsed array instead of the raw string
+          players_killed: playersKilled,   // Use the parsed array instead of the raw string
+          notes: formData.notes || null,   // Ensure null is sent if empty
+          evidence_url: formData.evidence_url || null,  // Ensure null is sent if empty
         }),
       })
 
-      if (res.ok) {
-        onSuccess()
-      } else {
+      if (!res.ok) {
         const error = await res.json()
-        alert(error.error || 'Failed to add log')
+        throw new Error(error.message || 'Failed to submit log')
       }
+
+      // After successful submission, send to Discord
+      try {
+        const discordType = formData.log_type === 'ATTACK' ? 'ATTACK' : 'DEFENSE'
+        const title = `${discordType} LOG — ${new Date(dateTime).toLocaleString()}`
+        
+        const fields = [
+          { name: 'Our Deaths', value: formData.friends_involved || ' ', inline: true },
+          { name: 'Enemy Deaths', value: formData.players_killed || ' ', inline: true }
+        ]
+        
+        if (formData.notes) {
+          fields.push({ name: 'Notes', value: formData.notes, inline: false })
+        }
+        
+        if (formData.evidence_url) {
+          fields.push({ name: 'Evidence', value: `[View Evidence] (${formData.evidence_url})`, inline: false })
+        }
+
+        const description = `${discordType} cooldown triggered`;
+        // Parse the friends and enemies killed from your form data
+        const friendsKilled = formData.friends_involved
+          .split(',')
+          .map(p => p.trim())
+          .filter(p => p.length > 0);
+        const enemiesKilled = formData.players_killed
+          .split(',')
+          .map(p => p.trim())
+          .filter(p => p.length > 0);
+        // Send to Discord
+        await fetch('/api/encounter-logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: discordType,
+            title: title,
+            description: description,
+            war_id: warId,
+            notes: formData.notes,
+            evidence_url: formData.evidence_url,
+            friends_killed: friendsKilled,
+            enemies_killed: enemiesKilled,
+            author: {
+              username: session?.user?.name || 'Unknown',
+              discordId: (session?.user as any)?.discordId,
+              avatar: session?.user?.image // Make sure this is the Discord avatar URL
+            }
+          })
+        });
+      } catch (discordError) {
+        console.error('Failed to send to Discord:', discordError)
+        // Don't fail the whole operation if Discord fails
+      }
+
+      onSuccess()
+      onClose()
     } catch (error) {
-      console.error('Error adding log:', error)
-      alert('Failed to add log')
+      console.error('Error submitting war log:', error)
+      alert(error instanceof Error ? error.message : 'Failed to submit log')
     } finally {
       setIsLoading(false)
     }
@@ -226,7 +311,19 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               <Input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  if (isFutureDateTime(newDate, formData.time)) {
+                  const now = getCurrentServerTime();
+                  setFormData(prev => ({
+                    ...prev,
+                    date: format(now, 'yyyy-MM-dd'),
+                    time: format(now, 'HH:mm')
+                  }));
+                } else {
+                  setFormData(prev => ({ ...prev, date: newDate }));
+                }
+                }}
                 required
               />
             </div>
@@ -237,7 +334,19 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               <Input
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                onChange={(e) => {
+                  const newTime = e.target.value;
+                  if (isFutureDateTime(formData.date, newTime)) {
+                    const now = getCurrentServerTime();
+                    setFormData(prev => ({
+                      ...prev,
+                      date: format(now, 'yyyy-MM-dd'),
+                      time: format(now, 'HH:mm')
+                    }));
+                  } else {
+                    setFormData(prev => ({ ...prev, time: newTime }));
+                  }
+                }}
                 required
               />
             </div>
@@ -252,7 +361,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
             
             <Input
               type="text"
-              placeholder="Start typing to see Discord suggestions..."
+              // placeholder="Start typing to see Discord suggestions..."
               value={formData.friends_involved}
               onChange={(e) => handleFriendsChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
@@ -303,7 +412,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
             
             <Input
               type="text"
-              placeholder="Start typing to see Discord suggestions..."
+              // placeholder="Start typing to see Discord suggestions..."
               value={formData.players_killed}
               onChange={(e) => handlePlayersChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowPlayersDropdown(false), 200)}
@@ -353,7 +462,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
             </label>
             <textarea
               className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gang-highlight focus:border-transparent transition-all min-h-[100px]"
-              placeholder="Additional details about the encounter..."
+              // placeholder="Additional details about the encounter..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />
@@ -367,12 +476,12 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
             </label>
             <Input
               type="url"
-              placeholder="https://imgur.com/..."
+              // placeholder="Imgur, YouTube, Streamable or similar are preferred"
               value={formData.evidence_url}
               onChange={(e) => setFormData({ ...formData, evidence_url: e.target.value })}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Upload your image to Imgur or similar and paste the URL
+              Comma-separated links. Paste image URL first, if applicable, then video in the end.
             </p>
           </div>
 
