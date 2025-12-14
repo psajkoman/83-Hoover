@@ -5,6 +5,7 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isUuid } from '@/lib/warSlug'
+import { sendEncounterLogToDiscord } from '@/lib/discord'
 
 export async function GET(
   request: NextRequest,
@@ -52,6 +53,7 @@ export async function GET(
       .from('war_logs')
       .select(`
         *,
+        members_involved,
         submitted_by_user:users!war_logs_submitted_by_fkey(username, discord_id, avatar),
         edited_by_user:users!war_logs_edited_by_fkey(username, discord_id, avatar)
       `)
@@ -111,14 +113,41 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { date_time, log_type, friends_involved, players_killed, notes, evidence_url } = body
+    const { date_time, log_type, members_involved, friends_involved, players_killed, notes, evidence_url } = body
 
-    if (!date_time || !log_type || !friends_involved || !players_killed) {
+    if (!date_time || !log_type || !members_involved) {
       return NextResponse.json(
-        { error: 'Date/time, log type, friends involved, and players killed are required' },
+        { error: 'Date/time, log type, and members involved are required' },
         { status: 400 }
       )
     }
+
+    const membersArray = Array.isArray(members_involved) ? members_involved : []
+    const friendsArray = Array.isArray(friends_involved) ? friends_involved : []
+    const playersArray = Array.isArray(players_killed) ? players_killed : []
+
+    // Determine if this is the first encounter (no previous logs)
+    const { count: existingLogCount, error: existingLogCountError } = await supabase
+      .from('war_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('war_id', warId)
+
+    if (existingLogCountError) throw existingLogCountError
+    const isFirstEncounter = (existingLogCount || 0) === 0
+
+    // Determine if war already had kills recorded BEFORE this insert
+    const { count: existingKillCount, error: existingKillCountError } = await supabase
+      .from('war_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('war_id', warId)
+      .or('players_killed.neq.{},friends_involved.neq.{}')
+
+    if (existingKillCountError) {
+      // Fallback: still allow log creation even if we can't compute kill state
+      console.warn('Failed to check existing kills:', existingKillCountError)
+    }
+    const warHadKillsBefore = (existingKillCount || 0) > 0
+    const encounterHasKills = friendsArray.length > 0 || playersArray.length > 0
 
     const { data: log, error } = await supabase
       .from('war_logs')
@@ -126,6 +155,7 @@ export async function POST(
         war_id: warId,
         log_type: log_type || 'ATTACK',
         date_time,
+        members_involved: membersArray,
         friends_involved,
         players_killed,
         notes: notes || null,
@@ -140,7 +170,94 @@ export async function POST(
 
     if (error) throw error
 
-    return NextResponse.json({ log }, { status: 201 })
+    // Compute war level change (NON_LETHAL -> LETHAL) ONLY if kills are present
+    let warLevelChangedToLethal = false
+    let currentWarLevel: string | null = null
+    try {
+      const { data: warRow, error: warRowError } = await supabase
+        .from('faction_wars')
+        .select('war_level, enemy_faction, started_at, slug')
+        .eq('id', warId)
+        .single()
+
+      if (warRowError) throw warRowError
+
+      currentWarLevel = (warRow as any)?.war_level || null
+
+      if (currentWarLevel !== 'LETHAL' && currentWarLevel !== 'NON_LETHAL') {
+        // Normalize any legacy values.
+        currentWarLevel = 'NON_LETHAL'
+      }
+
+      if (currentWarLevel !== 'LETHAL' && !warHadKillsBefore && encounterHasKills) {
+        const { error: updateError } = await supabase
+          .from('faction_wars')
+          .update({ war_level: 'LETHAL' })
+          .eq('id', warId)
+
+        if (!updateError) {
+          warLevelChangedToLethal = true
+          currentWarLevel = 'LETHAL'
+        }
+      }
+
+      // Send to Discord and persist discord message id
+      try {
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL
+        const warUrl = origin
+          ? `${origin.replace(/\/$/, '')}/wars/${(warRow as any)?.slug || warId}`
+          : undefined
+        const embedTitle = `New encounter with ${(warRow as any)?.enemy_faction || 'Unknown Faction'}`
+        let embedDescription = `${(log_type || 'ATTACK') === 'ATTACK' ? 'Attack' : 'Defense'} cooldown triggered.`
+
+        if (isFirstEncounter && currentWarLevel) {
+          embedDescription = `${embedDescription}\nLevel: ${currentWarLevel === 'LETHAL' ? 'Lethal' : 'Non lethal'}`
+        }
+        if (warLevelChangedToLethal) {
+          embedDescription = `${embedDescription}\nWar level changed to Lethal`
+        }
+
+        const discordResult = await sendEncounterLogToDiscord((log_type || 'ATTACK') === 'ATTACK' ? 'ATTACK' : 'DEFENSE', {
+          title: embedTitle,
+          description: embedDescription,
+          timestamp: date_time ? new Date(date_time) : undefined,
+          notes: notes || undefined,
+          evidence_url: evidence_url || undefined,
+          members_involved: membersArray,
+          friends_killed: friendsArray,
+          enemies_killed: playersArray,
+          war_name: (warRow as any)?.enemy_faction,
+          war_url: warUrl,
+          author: {
+            username: (log as any)?.submitted_by_user?.username || 'System',
+          },
+        })
+
+        if (discordResult?.ok && discordResult.messageId) {
+          await supabase
+            .from('war_logs')
+            .update({
+              discord_message_id: discordResult.messageId,
+              discord_channel_id: discordResult.channelId || null,
+            })
+            .eq('id', (log as any).id)
+        }
+      } catch (e) {
+        console.warn('Failed to send war log to Discord:', e)
+      }
+    } catch (e) {
+      console.warn('Failed to compute/update war level:', e)
+    }
+
+    return NextResponse.json(
+      {
+        log,
+        isFirstEncounter,
+        currentWarLevel,
+        warLevelChangedToLethal,
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error('Error creating war log:', error)
     return NextResponse.json(

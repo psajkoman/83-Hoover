@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { buildEncounterWebhookPayload, deleteDiscordWebhookMessage, editDiscordWebhookMessage } from '@/lib/discord'
 
 // Edit a war log
 export async function PATCH(
@@ -19,7 +20,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { date_time, log_type, friends_involved, players_killed, notes, evidence_url } = body
+    const { date_time, log_type, members_involved, friends_involved, players_killed, notes, evidence_url } = body
 
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
@@ -37,7 +38,7 @@ export async function PATCH(
     // Check if user owns the log or is admin
     const { data: log } = await supabase
       .from('war_logs')
-      .select('submitted_by')
+      .select('id, war_id, submitted_by, log_type, discord_message_id')
       .eq('id', logId)
       .single()
 
@@ -49,11 +50,12 @@ export async function PATCH(
     }
 
     // Update the log
-    const { error } = await supabase
+    const { data: updatedLog, error } = await supabase
       .from('war_logs')
       .update({
         date_time,
         log_type,
+        members_involved,
         friends_involved,
         players_killed,
         notes,
@@ -63,8 +65,79 @@ export async function PATCH(
         updated_at: new Date().toISOString()
       })
       .eq('id', logId)
+      .select('*')
+      .single()
 
     if (error) throw error
+
+    // Recompute war level downgrade if kills removed
+    try {
+      const warId = (log as any)?.war_id
+      if (warId) {
+        const { count: killCount } = await supabase
+          .from('war_logs')
+          .select('*', { count: 'exact', head: true })
+          .eq('war_id', warId)
+          .or('players_killed.neq.{},friends_involved.neq.{}')
+
+        if ((killCount || 0) === 0) {
+          await supabase
+            .from('faction_wars')
+            .update({ war_level: 'NON_LETHAL' })
+            .eq('id', warId)
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to recompute war level after edit:', e)
+    }
+
+    // Sync edit to Discord (edit same message)
+    try {
+      const messageId = (log as any)?.discord_message_id
+      const effectiveType = ((updatedLog as any)?.log_type || (log as any)?.log_type || 'ATTACK') as 'ATTACK' | 'DEFENSE'
+      if (messageId) {
+        const warId = (log as any)?.war_id
+        let warRow: any = null
+        try {
+          const { data } = await supabase
+            .from('faction_wars')
+            .select('enemy_faction, slug')
+            .eq('id', warId)
+            .single()
+          warRow = data
+        } catch {
+          warRow = null
+        }
+
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL
+        const warUrl = origin
+          ? `${origin.replace(/\/$/, '')}/wars/${warRow?.slug || warId || id}`
+          : undefined
+
+        const embedTitle = `New encounter with ${warRow?.enemy_faction || 'Unknown Faction'}`
+        const embedDescription = `${effectiveType === 'ATTACK' ? 'Attack' : 'Defense'} cooldown triggered.`
+
+        const { webhookUrl, payload } = buildEncounterWebhookPayload(effectiveType, {
+          title: embedTitle,
+          description: embedDescription,
+          timestamp: (updatedLog as any)?.date_time ? new Date((updatedLog as any).date_time) : undefined,
+          notes: (updatedLog as any)?.notes || undefined,
+          evidence_url: (updatedLog as any)?.evidence_url || undefined,
+          members_involved: Array.isArray((updatedLog as any)?.members_involved) ? (updatedLog as any).members_involved : [],
+          friends_killed: Array.isArray((updatedLog as any)?.friends_involved) ? (updatedLog as any).friends_involved : [],
+          enemies_killed: Array.isArray((updatedLog as any)?.players_killed) ? (updatedLog as any).players_killed : [],
+          war_name: warRow?.enemy_faction,
+          war_url: warUrl,
+          author: {
+            username: (session?.user?.name as string) || 'System',
+          },
+        })
+
+        await editDiscordWebhookMessage(webhookUrl, messageId, payload)
+      }
+    } catch (e) {
+      console.warn('Failed to sync edited log to Discord:', e)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -120,6 +193,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Only admins can delete logs' }, { status: 403 })
     }
 
+    // Fetch discord message info BEFORE deletion
+    const { data: existingLog } = await supabase
+      .from('war_logs')
+      .select('id, war_id, log_type, discord_message_id')
+      .eq('id', logId)
+      .single()
+
     const { error } = await supabase
       .from('war_logs')
       .delete()
@@ -128,6 +208,42 @@ export async function DELETE(
     if (error) {
       console.error('Delete error:', error)
       throw error
+    }
+
+    // Delete Discord message (best effort)
+    try {
+      const messageId = (existingLog as any)?.discord_message_id
+      const effectiveType = ((existingLog as any)?.log_type || 'ATTACK') as 'ATTACK' | 'DEFENSE'
+      if (messageId) {
+        const { webhookUrl } = buildEncounterWebhookPayload(effectiveType, {
+          title: 'Deleted encounter',
+          description: 'Deleted encounter',
+        })
+        await deleteDiscordWebhookMessage(webhookUrl, messageId)
+      }
+    } catch (e) {
+      console.warn('Failed to delete Discord message for war log:', e)
+    }
+
+    // Recompute war level downgrade if kills removed
+    try {
+      const warId = (existingLog as any)?.war_id
+      if (warId) {
+        const { count: killCount } = await supabase
+          .from('war_logs')
+          .select('*', { count: 'exact', head: true })
+          .eq('war_id', warId)
+          .or('players_killed.neq.{},friends_involved.neq.{}')
+
+        if ((killCount || 0) === 0) {
+          await supabase
+            .from('faction_wars')
+            .update({ war_level: 'NON_LETHAL' })
+            .eq('id', warId)
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to recompute war level after delete:', e)
     }
 
     return NextResponse.json({ success: true })

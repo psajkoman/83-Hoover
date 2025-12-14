@@ -26,6 +26,7 @@ interface WarLog {
   id: string
   date_time: string
   log_type: string
+  members_involved: string[]
   friends_involved: string[]
   players_killed: string[]
   notes: string | null
@@ -59,6 +60,7 @@ export default function WarDetailPage() {
   const [editingLogId, setEditingLogId] = useState<string | null>(null)
   const [editFormData, setEditFormData] = useState<{
     log_type: string
+    members_involved: string
     friends_involved: string
     players_killed: string
     notes: string
@@ -66,6 +68,7 @@ export default function WarDetailPage() {
   } | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [discordMembers, setDiscordMembers] = useState<any[]>([])
+  const [showMembersDropdown, setShowMembersDropdown] = useState(false)
   const [showFriendsDropdown, setShowFriendsDropdown] = useState(false)
   const [showPlayersDropdown, setShowPlayersDropdown] = useState(false)
 
@@ -172,6 +175,20 @@ export default function WarDetailPage() {
     }).slice(0, 5)
   }
 
+  const getServerDisplayName = (discordId: string | undefined, fallback: string) => {
+    if (!discordId) return fallback
+    const member = discordMembers.find((m: any) => m.id === discordId)
+    return member?.display_name || member?.nickname || member?.username || fallback
+  }
+
+  const handleMembersChange = (value: string) => {
+    if (!editFormData) return
+    setEditFormData({ ...editFormData, members_involved: value })
+    const words = value.split(',')
+    const lastWord = words[words.length - 1].trim()
+    setShowMembersDropdown(lastWord.length >= 2)
+  }
+
   const handleFriendsChange = (value: string) => {
     if (!editFormData) return
     setEditFormData({ ...editFormData, friends_involved: value })
@@ -188,14 +205,22 @@ export default function WarDetailPage() {
     setShowPlayersDropdown(lastWord.length >= 2)
   }
 
-  const insertSuggestion = (field: 'friends' | 'players', suggestion: string) => {
+  const insertSuggestion = (field: 'members' | 'friends' | 'players', suggestion: string) => {
     if (!editFormData) return
-    const currentValue = field === 'friends' ? editFormData.friends_involved : editFormData.players_killed
+    const currentValue =
+      field === 'members'
+        ? editFormData.members_involved
+        : field === 'friends'
+          ? editFormData.friends_involved
+          : editFormData.players_killed
     const words = currentValue.split(',').map(w => w.trim())
     words[words.length - 1] = suggestion
     const newValue = words.join(', ')
     
-    if (field === 'friends') {
+    if (field === 'members') {
+      setEditFormData({ ...editFormData, members_involved: newValue + ', ' })
+      setShowMembersDropdown(false)
+    } else if (field === 'friends') {
       setEditFormData({ ...editFormData, friends_involved: newValue + ', ' })
       setShowFriendsDropdown(false)
     } else {
@@ -208,6 +233,7 @@ export default function WarDetailPage() {
     setEditingLogId(log.id)
     setEditFormData({
       log_type: log.log_type,
+      members_involved: (log.members_involved || []).join(', '),
       friends_involved: log.friends_involved.join(', '),
       players_killed: log.players_killed.join(', '),
       notes: log.notes || '',
@@ -224,6 +250,7 @@ export default function WarDetailPage() {
     if (!editFormData) return
 
     try {
+      const membersArray = editFormData.members_involved.split(',').map(n => n.trim()).filter(n => n)
       const friendsArray = editFormData.friends_involved.split(',').map(n => n.trim()).filter(n => n)
       const playersArray = editFormData.players_killed.split(',').map(n => n.trim()).filter(n => n)
 
@@ -233,6 +260,7 @@ export default function WarDetailPage() {
         body: JSON.stringify({
           date_time: dateTime,
           log_type: editFormData.log_type,
+          members_involved: membersArray,
           friends_involved: friendsArray,
           players_killed: playersArray,
           notes: editFormData.notes || null,
@@ -377,7 +405,7 @@ export default function WarDetailPage() {
                       className="hover:text-white cursor-help transition-colors" 
                       title={`Created on ${new Date(log.created_at).toLocaleString()}`}
                     >
-                      Created by {log.submitted_by_user.username}
+                      Created by {getServerDisplayName(log.submitted_by_user?.discord_id, log.submitted_by_user?.username)}
                     </span>
                     {log.edited_by && log.edited_by_user && (
                       <>
@@ -386,7 +414,7 @@ export default function WarDetailPage() {
                           className="hover:text-white cursor-help transition-colors" 
                           title={`Edited on ${new Date(log.edited_at!).toLocaleString()}`}
                         >
-                          edited by {log.edited_by_user.username}
+                          edited by {getServerDisplayName(log.edited_by_user?.discord_id, log.edited_by_user?.username)}
                         </span>
                       </>
                     )}
@@ -441,7 +469,64 @@ export default function WarDetailPage() {
                   )}
                 </div>
               </div>
-
+              {/* Members Involved */}
+              <div className="relative">
+                <h4 className="text-sm font-semibold text-gray-400 mb-2">
+                  Members Involved (Low West Crew)
+                </h4>
+                {editingLogId === log.id && editFormData ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editFormData.members_involved}
+                      onChange={(e) => handleMembersChange(e.target.value)}
+                      onBlur={() => setTimeout(() => setShowMembersDropdown(false), 200)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm"
+                      placeholder="Start typing to see Discord suggestions..."
+                    />
+                    {showMembersDropdown && (() => {
+                      const words = editFormData.members_involved.split(',')
+                      const lastWord = words[words.length - 1].trim()
+                      const suggestions = getFilteredMembers(lastWord)
+                      return suggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {suggestions.map((member: any) => {
+                            const serverName = member.nickname || member.username
+                            const showUsername = member.nickname && member.username !== member.nickname
+                            return (
+                              <button
+                                key={member.id}
+                                type="button"
+                                onClick={() => insertSuggestion('members', serverName)}
+                                className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gang-highlight">@</span>
+                                  <span className="font-medium">{serverName}</span>
+                                  {showUsername && (
+                                    <span className="text-xs text-gray-400">({member.username})</span>
+                                  )}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+                  </>
+                ) : (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {log.members_involved?.map((member, idx) => (
+                      <span
+                        key={`member-${idx}`}
+                        className="px-3 py-1.5 bg-blue-500/20 rounded-full text-sm text-blue-300"
+                      >
+                        {member}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="relative">
                   <h4 className="text-sm font-semibold text-gray-400 mb-2">
