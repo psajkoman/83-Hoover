@@ -57,19 +57,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = supabaseAdmin
 
-    // Check if user is admin
+    // Check user role
     const { data: user } = await supabase
       .from('users')
       .select('id, role')
       .eq('discord_id', (session.user as any).discordId)
       .single<{ id: string; role: 'ADMIN' | 'LEADER' | 'MODERATOR' | 'MEMBER' | 'GUEST' }>()
 
-    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const body = await request.json()
-    const { enemy_faction, war_type, regulations } = body
+    const { enemy_faction, war_type, war_level, regulations } = body
 
     if (!enemy_faction) {
       return NextResponse.json(
@@ -78,9 +76,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)
+    const isMember = user.role === 'MEMBER'
+
+    if (!isAdmin && !isMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Members can only create non-lethal uncontrolled wars
+    const effectiveWarType = isAdmin ? (war_type || 'UNCONTROLLED') : 'UNCONTROLLED'
+    const effectiveWarLevel = isAdmin ? (war_level || 'NON_LETHAL') : 'NON_LETHAL'
+
     // If uncontrolled, get default regulations
     let warRegulations = regulations
-    if (war_type === 'UNCONTROLLED' || !war_type) {
+    if (effectiveWarType === 'UNCONTROLLED') {
       const { data: globalRegs } = await supabase
         .from('global_war_regulations')
         .select('*')
@@ -108,32 +117,94 @@ export async function POST(request: NextRequest) {
     }
 
     const startedAt = new Date().toISOString()
-    const slug = createWarSlug(enemy_faction, startedAt)
+    
+    // Function to check if a slug already exists
+    const slugExists = async (slug: string): Promise<boolean> => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('faction_wars')
+          .select('id')
+          .eq('slug', slug)
+          .maybeSingle()
+        
+        if (error) throw error
+        return !!data
+      } catch (error) {
+        console.error('Error checking if slug exists:', error)
+        throw error
+      }
+    }
 
-    // Using a type assertion to bypass the type error
-    // The proper fix would be to regenerate the Supabase types
+    // Function to generate a unique slug
+    const generateUniqueSlug = async (baseSlug: string, counter = 0): Promise<string> => {
+      const slug = counter === 0 ? baseSlug : `${baseSlug}-${counter}`
+      const exists = await slugExists(slug)
+      
+      if (!exists) {
+        console.log(`Generated unique slug: ${slug}`)
+        return slug
+      }
+      
+      console.log(`Slug ${slug} exists, trying next...`)
+      return generateUniqueSlug(baseSlug, counter + 1)
+    }
+    
+    // Generate the base slug and find a unique one
+    const baseSlug = await createWarSlug(enemy_faction, startedAt, 0)
+    console.log('Generating unique slug based on:', baseSlug)
+    
+    const uniqueSlug = await generateUniqueSlug(baseSlug)
+    console.log('Found unique slug:', uniqueSlug)
+    
+    // Create the war with the unique slug
     const { data: war, error } = await (supabase as any)
       .from('faction_wars')
       .insert({
         enemy_faction,
-        started_by: user.id,
+        started_by: user?.id,
         status: 'ACTIVE',
         started_at: startedAt,
-        slug,
-        war_type: war_type || 'UNCONTROLLED',
+        slug: uniqueSlug,
+        war_type: effectiveWarType,
+        war_level: effectiveWarLevel,
         regulations: warRegulations,
       })
       .select()
       .single()
-
-    if (error) throw error
-
+    
+    if (error) {
+      throw error
+    }
+    
     return NextResponse.json({ war }, { status: 201 })
-  } catch (error) {
-    console.error('Error creating war:', error)
+  } catch (error: any) {
+    console.error('Error in POST /api/wars:', error)
+    
+    // Handle different types of errors
+    let statusCode = 500
+    let errorMessage = 'Failed to create war'
+    
+    if (error?.code === '23505' && error?.details?.includes('idx_faction_wars_slug_unique')) {
+      statusCode = 409 // Conflict
+      errorMessage = 'A war with this name already exists. Please try a different name.'
+    }
+    
+    const errorDetails = {
+      code: error?.code,
+      details: error?.details,
+      message: error?.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+    }
+    
+    console.error('Error details:', JSON.stringify(errorDetails, null, 2))
+    
     return NextResponse.json(
-      { error: 'Failed to create war' },
-      { status: 500 }
+      { 
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { details: errorDetails })
+      },
+      { status: statusCode }
     )
   }
 }
+

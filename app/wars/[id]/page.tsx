@@ -18,6 +18,7 @@ interface War {
   started_at: string
   ended_at: string | null
   war_type: string
+  war_level?: string
   regulations: any
 }
 
@@ -272,6 +273,16 @@ export default function WarDetailPage() {
     )
   }
 
+  const getWarLevelLabel = (level?: string) => {
+    return level === 'LETHAL' ? 'Lethal' : 'Non-lethal'
+  }
+
+  const getWarLevelClasses = (level?: string) => {
+    return level === 'LETHAL'
+      ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+      : 'bg-gang-green/20 text-gang-green border border-gang-green/30'
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -289,6 +300,9 @@ export default function WarDetailPage() {
             <div className="flex items-center gap-3 mb-4">
               <Swords className="w-8 h-8 text-gang-highlight" />
               <h1 className="text-3xl font-bold text-white">{war.enemy_faction}</h1>
+              <span className={`px-2 py-1 rounded text-xs font-semibold ${getWarLevelClasses(war.war_level)}`}>
+                {getWarLevelLabel(war.war_level)}
+              </span>
               <span
                 className={`px-3 py-1 rounded-full text-xs font-semibold ${
                   war.status === 'ACTIVE'

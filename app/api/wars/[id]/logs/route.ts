@@ -12,6 +12,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const hasKillsQuery = searchParams.get('hasKills') === 'true'
+    
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
@@ -30,6 +33,21 @@ export async function GET(
       warId = warBySlug.id
     }
 
+    // If hasKills query parameter is true, just check if there are any kills
+    if (hasKillsQuery) {
+      const { count, error: countError } = await supabase
+        .from('war_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('war_id', warId)
+        .not('players_killed', 'is', null)
+        .not('players_killed', 'eq', '{}')
+
+      if (countError) throw countError
+      
+      return NextResponse.json({ hasKills: (count || 0) > 0 })
+    }
+
+    // Otherwise, return the full logs
     const { data: logs, error } = await supabase
       .from('war_logs')
       .select(`

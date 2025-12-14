@@ -96,7 +96,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status } = body
+    const { status, war_type, war_level } = body
 
     const updateData: any = {}
     if (status) {
@@ -105,6 +105,27 @@ export async function PATCH(
         updateData.ended_at = new Date().toISOString()
       }
     }
+
+    if (war_type) updateData.war_type = war_type
+    
+    // If trying to set war to non-lethal, check for existing kills first
+    if (war_level === 'NON_LETHAL') {
+      const { count: killCount } = await supabase
+        .from('war_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('war_id', warId)
+        .not('players_killed', 'is', null)
+        .not('players_killed', 'eq', '{}')
+
+      if (killCount && killCount > 0) {
+        return NextResponse.json(
+          { error: 'Cannot set war to non-lethal because it has recorded kills' },
+          { status: 400 }
+        )
+      }
+    }
+    
+    if (war_level) updateData.war_level = war_level
 
     const { data: war, error } = await supabase
       .from('faction_wars')

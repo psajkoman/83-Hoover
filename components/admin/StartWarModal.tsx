@@ -8,11 +8,13 @@ import Input from '@/components/ui/Input'
 interface StartWarModalProps {
   onClose: () => void
   onSuccess: () => void
+  mode?: 'admin' | 'member'
 }
 
-export default function StartWarModal({ onClose, onSuccess }: StartWarModalProps) {
+export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: StartWarModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [warType, setWarType] = useState<'UNCONTROLLED' | 'CONTROLLED'>('UNCONTROLLED')
+  const [warLevel, setWarLevel] = useState<'NON_LETHAL' | 'LETHAL'>('NON_LETHAL')
   const [enemyFaction, setEnemyFaction] = useState('')
   
   // Controlled war regulations
@@ -21,20 +23,24 @@ export default function StartWarModal({ onClose, onSuccess }: StartWarModalProps
   const [pkCooldownDays, setPkCooldownDays] = useState(2)
   const [maxParticipants, setMaxParticipants] = useState(4)
   const [maxAssaultRifles, setMaxAssaultRifles] = useState(2)
-  const [weaponRestrictions, setWeaponRestrictions] = useState('Max 2 assault rifles, rest allowed')
+  const [weaponRestrictions, setWeaponRestrictions] = useState('None')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
+      const effectiveWarType = mode === 'member' ? 'UNCONTROLLED' : warType
+      const effectiveWarLevel = mode === 'member' ? 'NON_LETHAL' : warLevel
+
       const body: any = {
         enemy_faction: enemyFaction,
-        war_type: warType,
+        war_type: effectiveWarType,
+        war_level: effectiveWarLevel,
       }
 
       // Add custom regulations for controlled wars
-      if (warType === 'CONTROLLED') {
+      if (effectiveWarType === 'CONTROLLED') {
         body.regulations = {
           attacking_cooldown_hours: attackingCooldown,
           pk_cooldown_type: pkCooldownType,
@@ -93,41 +99,84 @@ export default function StartWarModal({ onClose, onSuccess }: StartWarModalProps
             />
           </div>
 
-          {/* War Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-3">
-              War Type
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setWarType('UNCONTROLLED')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  warType === 'UNCONTROLLED'
-                    ? 'border-gang-highlight bg-gang-highlight/10'
-                    : 'border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <div className="text-white font-semibold mb-1">Uncontrolled</div>
-                <div className="text-xs text-gray-400">Uses global regulations</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setWarType('CONTROLLED')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  warType === 'CONTROLLED'
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <div className="text-white font-semibold mb-1">Controlled</div>
-                <div className="text-xs text-gray-400">Custom regulations</div>
-              </button>
+          {mode === 'member' && (
+            <div className="p-4 rounded-lg border border-gray-700 bg-gang-primary/20">
+              <div className="text-white font-semibold mb-1">War Settings</div>
+              <div className="text-xs text-gray-400">Members can only start Non-lethal, Uncontrolled wars.</div>
             </div>
-          </div>
+          )}
+
+          {/* War Type */}
+          {mode === 'admin' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                War Level
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setWarLevel('NON_LETHAL')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    warLevel === 'NON_LETHAL'
+                      ? 'border-gang-green bg-gang-green/10'
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="text-white font-semibold mb-1">Non-lethal</div>
+                  <div className="text-xs text-gray-400">Default</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWarLevel('LETHAL')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    warLevel === 'LETHAL'
+                      ? 'border-orange-500 bg-orange-500/10'
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="text-white font-semibold mb-1">Lethal</div>
+                  <div className="text-xs text-gray-400">High risk</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'admin' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                War Type
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setWarType('UNCONTROLLED')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    warType === 'UNCONTROLLED'
+                      ? 'border-gang-highlight bg-gang-highlight/10'
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="text-white font-semibold mb-1">Uncontrolled</div>
+                  <div className="text-xs text-gray-400">Uses global regulations</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWarType('CONTROLLED')}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    warType === 'CONTROLLED'
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="text-white font-semibold mb-1">Controlled</div>
+                  <div className="text-xs text-gray-400">Custom regulations</div>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Custom Regulations for Controlled Wars */}
-          {warType === 'CONTROLLED' && (
+          {mode === 'admin' && warType === 'CONTROLLED' && (
             <div className="space-y-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
               <h4 className="font-semibold text-white">Custom Regulations</h4>
               

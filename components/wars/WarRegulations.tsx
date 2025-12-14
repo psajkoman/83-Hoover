@@ -52,7 +52,7 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
         <div className="flex items-start gap-3">
           <Clock className="w-5 h-5 text-gang-highlight flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <div className="text-white font-medium">Attacking Cooldown</div>
+            <div className="text-white font-medium">Attack Cooldown</div>
             <div className="text-sm text-gray-400">
               {regulations.attacking_cooldown_hours} hours between attacks
             </div>
@@ -66,8 +66,8 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
             <div className="text-white font-medium">Player Kill Cooldown</div>
             <div className="text-sm text-gray-400">
               {regulations.pk_cooldown_type === 'permanent'
-                ? 'Permanent - Once killed, cannot be killed again'
-                : `${regulations.pk_cooldown_days} days - Players can be killed again after cooldown`}
+                ? 'Permanent'
+                : `${regulations.pk_cooldown_days} days`}
             </div>
           </div>
         </div>
@@ -91,9 +91,9 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
             <div className="text-sm text-gray-400">
               {regulations.weapon_restrictions}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            {/* <div className="text-xs text-gray-500 mt-1">
               Max {regulations.max_assault_rifles} assault rifles allowed
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Card from '@/components/ui/Card'
 import { Swords, Calendar, Users, TrendingUp } from 'lucide-react'
 import { createWarSlug } from '@/lib/warSlug'
+import Button from '@/components/ui/Button'
+import StartWarModal from '@/components/admin/StartWarModal'
 
 interface War {
   id: string
   slug?: string
   enemy_faction: string
   status: string
+  war_level?: string
   started_at: string
   ended_at: string | null
   war_logs: { count: number }[]
@@ -18,15 +22,32 @@ interface War {
 
 export default function WarsPage() {
   const router = useRouter()
+  const { data: session } = useSession()
   const [activeWars, setActiveWars] = useState<War[]>([])
   const [endedWars, setEndedWars] = useState<War[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'active' | 'ended'>('active')
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [showStartWarModal, setShowStartWarModal] = useState(false)
 
 
   useEffect(() => {
     fetchWars()
   }, [])
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!session?.user) return
+      try {
+        const res = await fetch('/api/user/role')
+        const data = await res.json()
+        setUserRole(data.role)
+      } catch (error) {
+        console.error('Error fetching user role:', error)
+      }
+    }
+    fetchRole()
+  }, [session])
 
   const fetchWars = async () => {
     setIsLoading(true)
@@ -64,13 +85,34 @@ export default function WarsPage() {
 
   const wars = activeTab === 'active' ? activeWars : endedWars
 
+  const getWarLevelLabel = (level?: string) => {
+    return level === 'LETHAL' ? 'Lethal' : 'Non-lethal'
+  }
+
+  const getWarLevelClasses = (level?: string) => {
+    return level === 'LETHAL'
+      ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+      : 'bg-gang-green/20 text-gang-green border border-gang-green/30'
+  }
+
+  const canStartWarAsMember = session?.user && userRole === 'MEMBER'
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-3">
-          <Swords className="w-10 h-10 text-gang-highlight" />
-          <h1 className="text-4xl font-bold text-white">Faction Wars</h1>
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <div className="flex items-center gap-3">
+            <Swords className="w-10 h-10 text-gang-highlight" />
+            <h1 className="text-4xl font-bold text-white">Faction Wars</h1>
+          </div>
+
+          {canStartWarAsMember && (
+            <Button onClick={() => setShowStartWarModal(true)} className="flex items-center gap-2">
+              <Swords className="w-4 h-4" />
+              Start War
+            </Button>
+          )}
         </div>
         <p className="text-gray-400 text-lg">
           Track ongoing conflicts and war history
@@ -148,6 +190,11 @@ export default function WarsPage() {
                   <h3 className="text-xl font-bold text-white mb-2">
                     {war.enemy_faction}
                   </h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${getWarLevelClasses(war.war_level)}`}>
+                      {getWarLevelLabel(war.war_level)}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <Calendar className="w-4 h-4" />
                     <span>
@@ -175,6 +222,17 @@ export default function WarsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {showStartWarModal && (
+        <StartWarModal
+          mode="member"
+          onClose={() => setShowStartWarModal(false)}
+          onSuccess={() => {
+            setShowStartWarModal(false)
+            fetchWars()
+          }}
+        />
       )}
     </div>
   )

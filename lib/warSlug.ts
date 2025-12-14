@@ -18,6 +18,10 @@ export function formatYearMonth(dateInput: string | Date) {
   return `${year}${month}`
 }
 
-export function createWarSlug(enemyFaction: string, startedAt: string | Date) {
-  return `${slugifySegment(enemyFaction)}-${formatYearMonth(startedAt)}`
+export async function createWarSlug(enemyFaction: string, startedAt: string | Date, counter: number = 0) {
+  let baseSlug = `${slugifySegment(enemyFaction)}-${formatYearMonth(startedAt)}`
+  if (counter > 0) {
+    baseSlug = `${baseSlug}-${counter}`
+  }
+  return baseSlug
 }

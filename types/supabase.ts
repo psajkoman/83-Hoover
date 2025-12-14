@@ -301,6 +301,7 @@ export type Database = {
           enemy_faction: string
           started_by: string
           status: string
+          war_level: string
           war_type: string
           slug?: string | null
           started_at?: string
@@ -320,6 +321,7 @@ export type Database = {
           enemy_faction: string
           started_by: string
           status?: string
+          war_level?: string
           war_type: string
           slug?: string | null
           started_at?: string
@@ -339,6 +341,7 @@ export type Database = {
           enemy_faction?: string
           started_by?: string
           status?: string
+          war_level?: string
           war_type?: string
           slug?: string | null
           started_at?: string
