@@ -20,6 +20,7 @@ export default function Navbar() {
     { href: '/', label: 'Feed', icon: Home },
     { href: '/wars', label: 'Wars', icon: Swords },
     { href: '/turf', label: 'Turf Map', icon: Map },
+    { href: '/roster', label: 'Roster', icon: User },
     { href: '/gallery', label: 'Gallery', icon: ImageIcon },
     { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
   ]
