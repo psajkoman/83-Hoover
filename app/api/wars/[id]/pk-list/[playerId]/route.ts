@@ -32,10 +32,28 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Parse the playerId which is in format: {faction}-{playerName}
+    const [faction, ...nameParts] = playerId.split('-')
+    const playerName = nameParts.join('-') // In case the name contains hyphens
+    
+    // First, find the player by name and faction
+    const { data: player, error: findError } = await supabase
+      .from('player_kill_list')
+      .select('id')
+      .eq('player_name', playerName)
+      .eq('faction', faction)
+      .single()
+      
+    if (findError) throw findError
+    if (!player) {
+      return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+    }
+    
+    // Now delete using the found ID
     const { error } = await supabase
       .from('player_kill_list')
       .delete()
-      .eq('id', playerId)
+      .eq('id', player.id)
 
     if (error) throw error
 

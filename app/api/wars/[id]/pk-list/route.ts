@@ -58,7 +58,7 @@ export async function GET(
 
     // Calculate PK list from logs
     const pkMap = new Map<string, { 
-      player_name: string
+      player_name: string  // Original name from logs
       faction: 'ENEMY' | 'FRIEND'
       kill_count: number
       last_killed_at: string
@@ -66,6 +66,8 @@ export async function GET(
         username: string
         discord_id: string
         avatar: string | null
+        discriminator: string
+        current_username?: string  // Current Discord username (if different)
       } | null
     }>()
 
@@ -89,10 +91,31 @@ export async function GET(
           if (cleanName.length >= 2) { // Minimum length check to avoid too broad searches
             const { data } = await supabase
               .from('users')
-              .select('id, username, discord_id, avatar, discriminator')
-              .or(`username.ilike.%${cleanName}%,nickname.ilike.%${cleanName}%`)
+              .select('id, username, discord_id, avatar, discriminator, display_name')
+              .or(`username.ilike.%${cleanName}%,nickname.ilike.%${cleanName}%,display_name.ilike.%${cleanName}%`)
               .maybeSingle()
-            discordUser = data || null
+              
+            if (data) {
+              // Check if we already have a different entry for this Discord user
+              const existingEntry = Array.from(pkMap.entries())
+                .find(([_, e]) => e.discord_user?.discord_id === data.discord_id)
+              
+              discordUser = {
+                username: data.username,
+                discord_id: data.discord_id,
+                avatar: data.avatar,
+                discriminator: data.discriminator,
+                // If we found an existing entry for this Discord user, use its original username
+                // Otherwise, use the current username from the user's data
+                current_username: existingEntry ? existingEntry[1].discord_user?.username : data.username
+              }
+              
+              // If we found an existing entry with the same Discord ID but different name,
+              // remove it to avoid duplicates
+              if (existingEntry) {
+                pkMap.delete(existingEntry[0])
+              }
+            }
           }
 
           pkMap.set(key, {
