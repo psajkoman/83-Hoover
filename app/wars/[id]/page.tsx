@@ -664,7 +664,7 @@ export default function WarDetailPage() {
                 <div>
                   <h4 className="text-sm font-semibold text-gray-400 mb-2 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4" />
-                    Evidence URL
+                    Evidence
                   </h4>
                   {editingLogId === log.id && editFormData ? (
                     <input
@@ -681,6 +681,7 @@ export default function WarDetailPage() {
                       width={800}
                       height={450}
                       className="rounded-lg max-w-full h-auto max-h-96 object-contain"
+                      style={{ width: 'auto' }}
                     />
                   ) : null}
                 </div>

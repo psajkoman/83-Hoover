@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { buildEncounterWebhookPayload, deleteDiscordWebhookMessage, editDiscordWebhookMessage } from '@/lib/discord'
+import { buildEncounterWebhookPayload, deleteDiscordWebhookMessage, editDiscordWebhookMessage, resolveDiscordAuthor } from '@/lib/discord'
 
 // Edit a war log
 export async function PATCH(
@@ -146,9 +146,10 @@ export async function PATCH(
           enemies_killed: Array.isArray((updatedLog as any)?.players_killed) ? (updatedLog as any).players_killed : [],
           war_name: warRow?.enemy_faction,
           war_url: warUrl,
-          author: {
-            username: (session?.user?.name as string) || 'System',
-          },
+          author: await resolveDiscordAuthor(
+            (session.user as any)?.discordId,
+            ((session?.user as any)?.name as string) || 'System'
+          ),
         })
 
         await editDiscordWebhookMessage(webhookUrl, messageId, payload)

@@ -29,6 +29,56 @@ const withWait = (webhookUrl: string) => {
   return `${webhookUrl}?wait=true`;
 };
 
+export async function resolveDiscordAuthor(
+  discordId: string | undefined,
+  fallbackUsername: string
+): Promise<{ username: string; displayName: string; avatar?: string }> {
+  const base = {
+    username: fallbackUsername,
+    displayName: fallbackUsername,
+    avatar: undefined as string | undefined,
+  };
+
+  if (!discordId) return base;
+
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  if (!guildId || !botToken) return base;
+
+  try {
+    const res = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`,
+      {
+        headers: {
+          Authorization: `Bot ${botToken}`,
+        },
+        cache: 'no-store',
+      }
+    );
+
+    if (!res.ok) return base;
+
+    const member: any = await res.json();
+    const displayName =
+      member?.nick || member?.user?.global_name || member?.user?.username || fallbackUsername;
+
+    let avatar: string | undefined;
+    if (member?.avatar) {
+      avatar = `https://cdn.discordapp.com/guilds/${guildId}/users/${discordId}/avatars/${member.avatar}.png?size=128`;
+    } else if (member?.user?.avatar) {
+      avatar = `https://cdn.discordapp.com/avatars/${discordId}/${member.user.avatar}.png?size=128`;
+    }
+
+    return {
+      username: displayName,
+      displayName,
+      avatar,
+    };
+  } catch {
+    return base;
+  }
+}
+
 export async function sendToDiscordWebhook(webhookUrl: string, payload: DiscordWebhookPayload): Promise<DiscordWebhookSendResult> {
   try {
     console.log('Sending to Discord webhook:', webhookUrl, JSON.stringify(payload, null, 2));
@@ -149,8 +199,7 @@ export function buildEncounterWebhookPayload(
           ...(logData.notes ? [{ name: 'Notes', value: logData.notes, inline: false }] : []),
           ...(evidenceUrls.length > 0
             ? [{ name: 'Evidence', value: evidenceUrls.map((u) => `- ${u}`).join('\n'), inline: false }]
-            : []),
-          { name: 'Time', value: formattedTime, inline: false }
+            : [])
         ],
         thumbnail:
           firstEvidenceIsVideo
@@ -160,7 +209,8 @@ export function buildEncounterWebhookPayload(
         footer: {
           text: `Posted by ${logData.author?.displayName || logData.author?.username || 'System'}`,
           icon_url: logData.author?.avatar || undefined
-        }
+        },
+        timestamp: logTime.toISOString()
       }
     ]
   };

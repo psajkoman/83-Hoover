@@ -79,7 +79,7 @@ export async function POST(request: Request) {
           },
           cache: 'no-store',
         });
-
+        console.log('MEMBNER NICK', memberRes)
         if (memberRes.ok) {
           const member = await memberRes.json();
           displayName = member?.nick || member?.user?.global_name || member?.user?.username || displayName;
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       war_name: warName,
       war_url: warUrl,
       author: {
-        username: author?.username || 'System',
+        username: displayName || author?.username || 'System',
         displayName,
         avatar: author?.avatar,
       },

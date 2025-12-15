@@ -5,7 +5,7 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isUuid } from '@/lib/warSlug'
-import { sendEncounterLogToDiscord } from '@/lib/discord'
+import { resolveDiscordAuthor, sendEncounterLogToDiscord } from '@/lib/discord'
 
 export async function GET(
   request: NextRequest,
@@ -228,9 +228,10 @@ export async function POST(
           enemies_killed: playersArray,
           war_name: (warRow as any)?.enemy_faction,
           war_url: warUrl,
-          author: {
-            username: (log as any)?.submitted_by_user?.username || 'System',
-          },
+          author: await resolveDiscordAuthor(
+            (log as any)?.submitted_by_user?.discord_id,
+            (log as any)?.submitted_by_user?.username || 'System'
+          ),
         })
 
         if (discordResult?.ok && discordResult.messageId) {
