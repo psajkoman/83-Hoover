@@ -50,7 +50,6 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
   const enemyList = pkList.filter(p => p.faction === 'ENEMY').sort((a, b) => b.kill_count - a.kill_count)
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string)
-  console.log('isAdmin', session);
 
   const fetchPKList = useCallback(async () => {
     setIsLoading(true)

@@ -72,19 +72,37 @@ export async function PATCH(
 
     // Recompute war level downgrade if kills removed
     try {
-      const warId = (log as any)?.war_id
+      const warId = (log as any)?.war_id;
       if (warId) {
-        const { count: killCount } = await supabase
-          .from('war_logs')
-          .select('*', { count: 'exact', head: true })
-          .eq('war_id', warId)
-          .or('players_killed.neq.{},friends_involved.neq.{}')
-
-        if ((killCount || 0) === 0) {
-          await supabase
-            .from('faction_wars')
-            .update({ war_level: 'NON_LETHAL' })
-            .eq('id', warId)
+        const { data: war } = await supabase
+          .from('faction_wars')
+          .select('war_level, enemy_faction')
+          .eq('id', warId)
+          .single();
+        if (war) {
+          const hasKills = (friends_involved.length + players_killed.length) > 0;
+          const currentLevel = war.war_level;
+          // If war is not LETHAL and we're adding kills, upgrade to LETHAL
+          if (currentLevel !== 'LETHAL' && hasKills) {
+            await supabase
+              .from('faction_wars')
+              .update({ war_level: 'LETHAL' })
+              .eq('id', warId);
+          }
+          // If war is LETHAL and we're removing all kills, downgrade to NON_LETHAL
+          else if (currentLevel === 'LETHAL' && !hasKills) {
+            const { count: totalKills } = await supabase
+              .from('war_logs')
+              .select('*', { count: 'exact', head: true })
+              .eq('war_id', warId)
+              .or('players_killed.neq.{},friends_involved.neq.{}');
+            if ((totalKills || 0) === 0) {
+              await supabase
+                .from('faction_wars')
+                .update({ war_level: 'NON_LETHAL' })
+                .eq('id', warId);
+            }
+          }
         }
       }
     } catch (e) {
