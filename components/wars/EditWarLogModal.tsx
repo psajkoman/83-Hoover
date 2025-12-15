@@ -32,6 +32,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
   const [isLoading, setIsLoading] = useState(false)
   const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([])
   const [loadingMembers, setLoadingMembers] = useState(true)
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   
   // Parse date_time into date and time
   const dateObj = new Date(log.date_time)
@@ -454,13 +455,63 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
               <ImageIcon className="w-4 h-4 inline mr-2" />
               Evidence URL (Optional)
             </label>
-            <Input
-              type="url"
-              placeholder="https://imgur.com/..."
-              value={formData.evidence_url}
-              onChange={(e) => setFormData({ ...formData, evidence_url: e.target.value })}
-            />
+            {formData.evidence_url ? (
+              <div className="mt-2">
+                <div 
+                  className="inline-block max-w-full cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setZoomedImage(formData.evidence_url || '')}
+                >
+                  <img 
+                    src={formData.evidence_url} 
+                    alt="Evidence" 
+                    className="max-h-40 rounded-lg border border-gray-700"
+                  />
+                  <p className="text-xs text-gray-400 mt-1 truncate">{formData.evidence_url}</p>
+                </div>
+                <Input
+                  type="url"
+                  placeholder="https://imgur.com/..."
+                  value={formData.evidence_url}
+                  onChange={(e) => setFormData({ ...formData, evidence_url: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+            ) : (
+              <Input
+                type="url"
+                placeholder="https://imgur.com/..."
+                value={formData.evidence_url}
+                onChange={(e) => setFormData({ ...formData, evidence_url: e.target.value })}
+              />
+            )}
           </div>
+          
+          {/* Zoomed Image Modal */}
+          {zoomedImage && (
+            <div 
+              className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4"
+              onClick={() => setZoomedImage(null)}
+            >
+              <div className="relative max-w-full max-h-[90vh]">
+                <img 
+                  src={zoomedImage} 
+                  alt="Zoomed evidence" 
+                  className="max-w-full max-h-[90vh] object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setZoomedImage(null);
+                  }}
+                  className="absolute top-4 right-4 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                  aria-label="Close zoomed image"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="flex gap-3">
