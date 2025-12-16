@@ -36,18 +36,31 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Check if user owns the log or is admin
+    // Update the log query to include created_at
     const { data: log } = await supabase
       .from('war_logs')
-      .select('id, war_id, submitted_by, log_type, discord_message_id')
+      .select('id, war_id, submitted_by, log_type, discord_message_id, created_at')
       .eq('id', logId)
       .single()
 
     const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)
     const isOwner = log?.submitted_by === user.id
 
-    if (!isAdmin && !isOwner) {
-      return NextResponse.json({ error: 'You can only edit your own logs' }, { status: 403 })
+    // Add time check (24 hours in milliseconds)
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+    const logAge = Date.now() - new Date(log?.created_at || 0).getTime()
+    const isOlderThan24Hours = logAge > TWENTY_FOUR_HOURS
+
+    if (!isAdmin) {
+      if (!isOwner) {
+        return NextResponse.json({ error: 'You can only edit your own logs' }, { status: 403 })
+      }
+      if (isOlderThan24Hours) {
+        return NextResponse.json(
+          { error: 'Logs can only be edited within 24 hours of creation' }, 
+          { status: 403 }
+        )
+      }
     }
 
     // Update the log

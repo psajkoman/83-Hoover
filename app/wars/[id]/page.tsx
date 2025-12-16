@@ -609,7 +609,18 @@ const extractImageUrls = (text: string): string[] => {
     const userRole = (session.user as any).role
     const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)
     const isOwner = log.submitted_by_user.discord_id === userDiscordId
-    return isAdmin || isOwner
+    
+    // If user is admin, they can always edit
+    if (isAdmin) return true
+    
+    // If not admin, check if user is owner and log is within 24 hours
+    if (isOwner) {
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+      const logAge = Date.now() - new Date(log.created_at).getTime()
+      return logAge <= TWENTY_FOUR_HOURS
+    }
+    
+    return false
   }
 
   const canDeleteLog = (log: WarLog) => {
