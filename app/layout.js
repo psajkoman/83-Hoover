@@ -18,7 +18,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.variable}>
+      <body className={inter.variable} style={{
+        backgroundColor: "black",
+        backgroundImage: "url('/wp9075005.webp')",
+        backgroundSize: "contain",
+        backgroundPosition: "top",
+        backgroundRepeat: "repeat",
+        backdropFilter: "blur(45px) brightness(0.5)",
+      }}>
         <Providers>
           <Navbar />
           <ActiveWarBanner />
