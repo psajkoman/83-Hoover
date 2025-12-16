@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { sendEncounterLogToDiscord } from '@/lib/discord';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { createWarSlug, isUuid } from '@/lib/warSlug';
+import { formatServerTime } from '@/lib/dateUtils';
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
       friends_killed,
       enemies_killed,
       war_id,
+      date_time,
       is_first_encounter,
       current_war_level,
       war_level_changed_to_lethal,
@@ -97,14 +99,8 @@ export async function POST(request: Request) {
 
     const effectiveWarLevel = (current_war_level as string | undefined) || warLevel
 
-    const embedTitle = `New encounter with ${warName || 'Unknown Faction'}`
-    let embedDescription = `${type === 'ATTACK' ? 'Attack' : 'Defense'} cooldown triggered.`
-    if (is_first_encounter && effectiveWarLevel) {
-      embedDescription = `${embedDescription}\nLevel: ${effectiveWarLevel === 'LETHAL' ? 'Lethal' : 'Non lethal'}`
-    }
-    if (war_level_changed_to_lethal) {
-      embedDescription = `${embedDescription}\nWar level changed to Lethal`
-    }
+    const embedTitle = `Encounter with ${warName || 'Unknown Faction'}`
+    let embedDescription = `${formatServerTime(timestamp)}`
 
     const discordResult = await sendEncounterLogToDiscord(type, {
       title: embedTitle,

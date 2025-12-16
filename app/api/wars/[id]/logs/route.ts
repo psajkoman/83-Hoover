@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isUuid } from '@/lib/warSlug'
 import { resolveDiscordAuthor, sendEncounterLogToDiscord } from '@/lib/discord'
+import { formatServerTime } from '@/lib/dateUtils'
 
 export async function GET(
   request: NextRequest,
@@ -207,15 +208,8 @@ export async function POST(
         const warUrl = origin
           ? `${origin.replace(/\/$/, '')}/wars/${(warRow as any)?.slug || warId}`
           : undefined
-        const embedTitle = `New encounter with ${(warRow as any)?.enemy_faction || 'Unknown Faction'}`
-        let embedDescription = `${(log_type || 'ATTACK') === 'ATTACK' ? 'Attack' : 'Defense'} cooldown triggered.`
-
-        if (isFirstEncounter && currentWarLevel) {
-          embedDescription = `${embedDescription}\nLevel: ${currentWarLevel === 'LETHAL' ? 'Lethal' : 'Non lethal'}`
-        }
-        if (warLevelChangedToLethal) {
-          embedDescription = `${embedDescription}\nWar level changed to Lethal`
-        }
+        const embedTitle = `${(log_type || 'ATTACK') === 'ATTACK' ? 'Attack on' : 'Defense from'} ${(warRow as any)?.enemy_faction || 'Unknown Faction'}`
+        let embedDescription = `${formatServerTime(date_time)}`
 
         const discordResult = await sendEncounterLogToDiscord((log_type || 'ATTACK') === 'ATTACK' ? 'ATTACK' : 'DEFENSE', {
           title: embedTitle,

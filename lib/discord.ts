@@ -148,36 +148,49 @@ export function buildEncounterWebhookPayload(
   console.log('logData', logData)
   const color = 0x252b32;
   const logTime = logData.timestamp ? new Date(logData.timestamp) : new Date();
-  const formattedTime = logTime.toLocaleString('en-GB', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Europe/London'
-  });
+  console.log('logTime', logTime);
+  
+  // Format the date and time as YYYY-MM-DD HH:MM
+  const formatTime = (date: Date) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getUTCMonth()];
+    const day = date.getUTCDate();
+    const daySuffix = 
+      day % 10 === 1 && day !== 11 ? 'st' :
+      day % 10 === 2 && day !== 12 ? 'nd' :
+      day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+    
+    let hours = date.getUTCHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // Convert 0 to 12
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    
+    return `${month} ${day}${daySuffix} at ${hours}:${minutes} ${ampm}`;
+  };
 
-  const formatNames = (names: string[]) =>
-    names.length > 0 ? names.map(name => `- ${name}`).join('\n') : ' ';
+  const formatNames = (names: string[]) => names.length > 0 ? names.map(name => `\u200B\u2002${name}`).join('\n') : ' ';
 
-  const fields = [
-    {
-      name: 'Members Involved',
-      value: formatNames(logData.members_involved || []),
-      inline: false
-    },
-    {
-      name: 'Our Deaths',
-      value: formatNames(logData.friends_killed || []),
-      inline: true
-    },
-    {
-      name: 'Enemy Deaths',
-      value: formatNames(logData.enemies_killed || []),
-      inline: true
-    }
-  ] as Array<{ name: string; value: string; inline?: boolean }>;
+  const membersWithDeaths = (logData.members_involved || []).map((member) => {
+  // Add skull if this member is in friends_killed
+  if ((logData.friends_killed || []).includes(member)) {
+    return `${member} ☠️`;
+  }
+  return member;
+});
+console.log(JSON.stringify(formatNames(membersWithDeaths)));
+const fields = [
+  {
+    name: "`MEMBERS INVOLVED`",
+    value: formatNames(membersWithDeaths),
+    inline: true
+  },
+  {
+    name: "`ENEMY DEATHS`",
+    value: formatNames(logData.enemies_killed || []),
+    inline: true
+  }
+] as Array<{ name: string; value: string; inline?: boolean }>;
 
   const evidenceUrls = (logData.evidence_url || '')
     .split(',')
@@ -185,20 +198,29 @@ export function buildEncounterWebhookPayload(
     .filter(Boolean);
   const firstEvidenceUrl = evidenceUrls[0];
   const firstEvidenceIsImage = !!firstEvidenceUrl && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(firstEvidenceUrl);
-  const firstEvidenceIsVideo = !!firstEvidenceUrl && /\.(mp4|webm|mov)(\?.*)?$/i.test(firstEvidenceUrl);
+  const firstEvidenceIsVideo = !!firstEvidenceUrl && (/\.(mp4|webm|mov)(\?.*)?$/i.test(firstEvidenceUrl) || firstEvidenceUrl.includes('youtube') || firstEvidenceUrl.includes('streamable'));
 
   const payload: DiscordWebhookPayload = {
     embeds: [
       {
         title: logData.title,
         url: logData.war_url || undefined,
-        description: logData.description,
+        description: logData.notes,
         color,
         fields: [
           ...fields,
-          ...(logData.notes ? [{ name: 'Notes', value: logData.notes, inline: false }] : []),
-          ...(evidenceUrls.length > 0
-            ? [{ name: 'Evidence', value: evidenceUrls.map((u) => `- ${u}`).join('\n'), inline: false }]
+          ...((logData.notes || evidenceUrls.length > 0)
+            ? [{
+                name: "`EVIDENCE`",
+                value: [
+                  evidenceUrls.length > 0
+                    ? evidenceUrls.map((u) => `\u200B\u2002${u}`).join('\n')
+                    : null
+                ]
+                  .filter(Boolean)
+                  .join('\n'),
+                inline: false
+              }]
             : [])
         ],
         thumbnail:
@@ -207,10 +229,9 @@ export function buildEncounterWebhookPayload(
             : undefined,
         image: firstEvidenceIsImage ? { url: firstEvidenceUrl } : undefined,
         footer: {
-          text: `Posted by ${logData.author?.displayName || logData.author?.username || 'System'}`,
+          text: `Posted by ${logData.author?.displayName || logData.author?.username || 'System'}\u2002•\u2002${formatTime(logTime)}`,
           icon_url: logData.author?.avatar || undefined
-        },
-        timestamp: logTime.toISOString()
+        }
       }
     ]
   };

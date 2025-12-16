@@ -5,6 +5,7 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { buildEncounterWebhookPayload, deleteDiscordWebhookMessage, editDiscordWebhookMessage, resolveDiscordAuthor } from '@/lib/discord'
+import { formatServerTime } from '@/lib/dateUtils'
 
 // Edit a war log
 export async function PATCH(
@@ -132,8 +133,8 @@ export async function PATCH(
           ? `${origin.replace(/\/$/, '')}/wars/${warRow?.slug || warId || id}`
           : undefined
 
-        const embedTitle = `New encounter with ${warRow?.enemy_faction || 'Unknown Faction'}`
-        const embedDescription = `${effectiveType === 'ATTACK' ? 'Attack' : 'Defense'} cooldown triggered.`
+        const embedTitle = `${(log_type || 'ATTACK') === 'ATTACK' ? 'Attack on' : 'Defense from'} ${(warRow as any)?.enemy_faction || 'Unknown Faction'}`
+        let embedDescription = formatServerTime(date_time)
 
         const { webhookUrl, payload } = buildEncounterWebhookPayload(effectiveType, {
           title: embedTitle,
