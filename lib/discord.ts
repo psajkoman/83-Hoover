@@ -172,12 +172,18 @@ export function buildEncounterWebhookPayload(
   const formatNames = (names: string[]) => names.length > 0 ? names.map(name => `\u200B\u2002${name}`).join('\n') : ' ';
 
   const membersWithDeaths = (logData.members_involved || []).map((member) => {
-  // Add skull if this member is in friends_killed
-  if ((logData.friends_killed || []).includes(member)) {
-    return `${member} ☠️`;
-  }
-  return member;
-});
+    // Track if member is dead
+    const isDead = (logData.friends_killed || []).includes(member);
+    return { name: member, isDead };
+  })
+  .sort((a, b) => {
+    // Sort dead members to the bottom
+    if (a.isDead && !b.isDead) return 1;
+    if (!a.isDead && b.isDead) return -1;
+    // Keep original order if both are dead or both are alive
+    return 0;
+  })
+  .map(member => member.isDead ? `${member.name} ☠️` : member.name);
 console.log(JSON.stringify(formatNames(membersWithDeaths)));
 const fields = [
   {
