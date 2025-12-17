@@ -1,4 +1,5 @@
 // lib/discord.ts
+import { formatServerTime } from './dateUtils';
 interface DiscordWebhookPayload {
   content?: string;
   embeds?: Array<{
@@ -44,6 +45,12 @@ type CurrentWarEmbedInput = {
     deaths: number;
   };
   siteUrl?: string;
+  lastDefense?: {
+    date_time: string;
+  } | null;
+  lastAttack?: {
+    date_time: string;
+  } | null;
 };
 
 const withWait = (webhookUrl: string) => {
@@ -51,6 +58,23 @@ const withWait = (webhookUrl: string) => {
   if (webhookUrl.includes('?')) return `${webhookUrl}&wait=true`;
   return `${webhookUrl}?wait=true`;
 };
+
+const getNextAttackTime = (lastEncounterTime: string, cooldownHours: number): string => {
+  const lastEncounter = new Date(lastEncounterTime);
+  const cooldownMs = cooldownHours * 60 * 60 * 1000;
+  const nextAttackTime = new Date(lastEncounter.getTime() + cooldownMs);
+  const now = new Date();
+  
+  if (now >= nextAttackTime) {
+    return '✅ Ready to attack';
+  }
+  
+  const diffMs = nextAttackTime.getTime() - now.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+  return `⏳ Next attack in ${diffHours}h ${diffMinutes}m`;
+}
 
 export async function resolveDiscordAuthor(
   discordId: string | undefined,
@@ -173,23 +197,9 @@ export function buildEncounterWebhookPayload(
   const logTime = logData.timestamp ? new Date(logData.timestamp) : new Date();
   console.log('logTime', logTime);
   
-  // Format the date and time as YYYY-MM-DD HH:MM
+  // Format the date and time using server's timezone (Europe/London)
   const formatTime = (date: Date) => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[date.getUTCMonth()];
-    const day = date.getUTCDate();
-    const daySuffix = 
-      day % 10 === 1 && day !== 11 ? 'st' :
-      day % 10 === 2 && day !== 12 ? 'nd' :
-      day % 10 === 3 && day !== 13 ? 'rd' : 'th';
-    
-    let hours = date.getUTCHours();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // Convert 0 to 12
-    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-    
-    return `${month} ${day}${daySuffix} at ${hours}:${minutes} ${ampm}`;
+    return formatServerTime(date).replace(' at ', ' ');
   };
 
   const formatNames = (names: string[]) => names.length > 0 ? names.map(name => `\u200B\u2002${name}`).join('\n') : ' ';
@@ -208,7 +218,7 @@ export function buildEncounterWebhookPayload(
   })
   .map(member => member.isDead ? `${member.name} ☠️` : member.name);
 console.log(JSON.stringify(formatNames(membersWithDeaths)));
-const fields = [
+const encounterFields = [
   {
     name: "`MEMBERS INVOLVED`",
     value: formatNames(membersWithDeaths),
@@ -216,56 +226,46 @@ const fields = [
   },
   {
     name: "`ENEMY DEATHS`",
-    value: formatNames(logData.enemies_killed || []),
+    value: logData.enemies_killed?.length ? formatNames(logData.enemies_killed) : 'None',
     inline: true
   }
-] as Array<{ name: string; value: string; inline?: boolean }>;
+];
 
-  const evidenceUrls = (logData.evidence_url || '')
-    .split(',')
-    .map(u => u.trim())
-    .filter(Boolean);
-  const firstEvidenceUrl = evidenceUrls[0];
-  const firstEvidenceIsImage = !!firstEvidenceUrl && /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(firstEvidenceUrl);
-  const firstEvidenceIsVideo = !!firstEvidenceUrl && (/\.(mp4|webm|mov)(\?.*)?$/i.test(firstEvidenceUrl) || firstEvidenceUrl.includes('youtube') || firstEvidenceUrl.includes('streamable'));
+const evidenceUrls = logData.evidence_url ? [logData.evidence_url] : [];
+const firstEvidenceUrl = evidenceUrls[0] || '';
+const firstEvidenceIsImage = /.(jpg|jpeg|png|gif|webp|bmp)$/i.test(firstEvidenceUrl);
+const firstEvidenceIsVideo = /.(mp4|webm|mov)$/i.test(firstEvidenceUrl);
 
-  const payload: DiscordWebhookPayload = {
-    embeds: [
-      {
-        title: logData.title,
-        url: logData.war_url || undefined,
-        description: logData.notes,
-        color,
-        fields: [
-          ...fields,
-          ...((logData.notes || evidenceUrls.length > 0)
-            ? [{
-                name: "`EVIDENCE`",
-                value: [
-                  evidenceUrls.length > 0
-                    ? evidenceUrls.map((u) => `\u200B\u2002${u}`).join('\n')
-                    : null
-                ]
-                  .filter(Boolean)
-                  .join('\n'),
-                inline: false
-              }]
-            : [])
-        ],
-        thumbnail:
-          firstEvidenceIsVideo
-            ? { url: 'https://support.discord.com/hc/user_images/v5lrcRh6xIijhePbuIfSgA.png' }
-            : undefined,
-        image: firstEvidenceIsImage ? { url: firstEvidenceUrl } : undefined,
-        footer: {
-          text: `Posted by ${logData.author?.displayName || logData.author?.username || 'System'}\u2002•\u2002${formatTime(logTime)}`,
-          icon_url: logData.author?.avatar || undefined
-        }
-      }
-    ]
-  };
+const payload: DiscordWebhookPayload = {
+  embeds: [{
+    title: logData.title,
+    url: logData.war_url || undefined,
+    description: logData.notes,
+    color,
+    fields: [
+      ...encounterFields,
+      ...((logData.notes || evidenceUrls.length > 0)
+        ? [{
+            name: "`EVIDENCE`",
+            value: evidenceUrls.length > 0
+              ? evidenceUrls.map((u: string) => `\u200B\u2002${u}`).join('\n')
+              : 'No evidence provided',
+            inline: false
+          }]
+        : [])
+    ],
+    thumbnail: firstEvidenceIsVideo
+      ? { url: 'https://support.discord.com/hc/user_images/v5lrcRh6xIijhePbuIfSgA.png' }
+      : undefined,
+    image: firstEvidenceIsImage ? { url: firstEvidenceUrl } : undefined,
+    footer: {
+      text: `Posted by ${logData.author?.displayName || logData.author?.username || 'System'}\u2002•\u2002${formatTime(logTime)}`,
+      icon_url: logData.author?.avatar || undefined
+    }
+  }]
+};
 
-  return { webhookUrl, payload };
+return { webhookUrl, payload };
 }
 
 export async function sendEncounterLogToDiscord(
@@ -346,20 +346,30 @@ export async function deleteDiscordWebhookMessage(
   }
 }
 
-export function buildWarWebhookPayload(war: {
-  id: string;
-  slug?: string | null;
-  enemy_faction: string;
-  war_level?: string | null;
-  war_type?: string | null;
-  started_at?: string | null;
-  regulations?: WarRegulations | null;
-  scoreboard?: {
-    kills: number;
-    deaths: number;
-  };
-  siteUrl?: string;
-}): { webhookUrl: string; payload: DiscordWebhookPayload } {
+// Helper function to format cooldown time
+function formatCooldownTime(lastTime: string, cooldownHours: number): string {
+  if (!lastTime) return 'Now';
+  
+  const lastAttackTime = new Date(lastTime);
+  const cooldownEnd = new Date(lastAttackTime.getTime() + (cooldownHours * 60 * 60 * 1000));
+  const now = new Date();
+  
+  if (now >= cooldownEnd) {
+    return 'Now';
+  }
+  
+  const diffMs = cooldownEnd.getTime() - now.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.ceil((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (diffHours > 0) {
+    return `in ${diffHours}h ${diffMinutes}m`;
+  } else {
+    return `in ${diffMinutes}m`;
+  }
+}
+
+export function buildWarWebhookPayload(war: CurrentWarEmbedInput): { webhookUrl: string; payload: DiscordWebhookPayload } {
   const webhookUrl = process.env.DISCORD_CURRENT_WARS_WEBHOOK;
   
   if (!webhookUrl) {
@@ -380,13 +390,14 @@ export function buildWarWebhookPayload(war: {
       : 'Even';
 
   const regs = war.regulations || {};
+  const attackCooldown = regs.attacking_cooldown_hours || 6;
   const pkCooldownType = (regs.pk_cooldown_type || '').toLowerCase();
   const pkCooldownText = pkCooldownType === 'permanent'
     ? 'Permanent'
     : (typeof regs.pk_cooldown_days === 'number' ? `${regs.pk_cooldown_days} days` : 'Not specified');
 
-  const attackCooldownText = typeof regs.attacking_cooldown_hours === 'number'
-    ? `${regs.attacking_cooldown_hours} hours`
+  const attackCooldownText = typeof attackCooldown === 'number'
+    ? `${attackCooldown} hours`
     : 'Not specified';
 
   const maxParticipantsText = typeof regs.max_participants === 'number'
@@ -413,27 +424,43 @@ export function buildWarWebhookPayload(war: {
   const warType = (war.war_type || 'UNCONTROLLED').toUpperCase();
   const startedAt = war.started_at ? new Date(war.started_at) : null;
 
-  // Format the date and time as MMM Do [at] h:mm A
-  const formatTime = (date: Date) => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[date.getUTCMonth()];
-    const day = date.getUTCDate();
-    const daySuffix = 
-      day % 10 === 1 && day !== 11 ? 'st' :
-      day % 10 === 2 && day !== 12 ? 'nd' :
-      day % 10 === 3 && day !== 13 ? 'rd' : 'th';
-    
-    let hours = date.getUTCHours();
+  // Format the date and time as DD/MM/YYYY HH:MM AM/PM in Europe/London timezone
+  const formatDateTime = (date: Date): string => {
+    // Convert to London time
+    const londonDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/London' }));
+    const day = londonDate.getDate().toString().padStart(2, '0');
+    const month = (londonDate.getMonth() + 1).toString().padStart(2, '0');
+    const year = londonDate.getFullYear();
+    let hours = londonDate.getHours();
+    const minutes = londonDate.getMinutes().toString().padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12;
     hours = hours ? hours : 12; // Convert 0 to 12
-    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
     
-    return `${month} ${day}${daySuffix} at ${hours}:${minutes} ${ampm}`;
+    return `${day}/${month}/${year} ${hours}:${minutes} ${ampm}`;
   };
 
+  // Function to calculate next attack time
+  const getNextAttackTime = (lastTime: string): string => {
+    if (!lastTime) return 'Now';
+    
+    const lastTimeDate = new Date(lastTime);
+    const nextAttackTime = new Date(lastTimeDate.getTime() + (attackCooldown * 60 * 60 * 1000));
+    
+    return formatDateTime(nextAttackTime);
+  };
+
+  // Calculate next attack times
+  const enemyNextAttack = war.lastDefense 
+    ? getNextAttackTime(war.lastDefense.date_time)
+    : 'Now';
+    
+  const lwcNextAttack = war.lastAttack
+    ? getNextAttackTime(war.lastAttack.date_time)
+    : 'Now';
+
   const currentTime = new Date();
-  const formattedTime = formatTime(currentTime);
+  const formattedTime = formatDateTime(currentTime);
 
   const payload: DiscordWebhookPayload = {
     embeds: [{
@@ -453,7 +480,7 @@ export function buildWarWebhookPayload(war: {
         },
         {
           name: '`START DATE`',
-          value: startedAt ? formatTime(startedAt) : 'Unknown',
+          value: startedAt ? formatDateTime(startedAt) : 'Unknown',
           inline: true
         },
         {
@@ -465,16 +492,29 @@ export function buildWarWebhookPayload(war: {
           name: '`WAR REGULATIONS`',
           value: regulationsText,
           inline: false
+        },
+        {
+          name: '`COOLDOWN STATUS`',
+          value: [
+            `**${war.enemy_faction}**`,
+            `- Next attack: ${enemyNextAttack}`,
+            '',
+            '**Low West Crew**',
+            `- Next attack: ${lwcNextAttack}`
+          ].join('\n'),
+          inline: true
         }
       ],
-footer: {
+      footer: {
         text: `Updated on ${formattedTime}`
       },
       timestamp: undefined
     }]
   };
+  
   return { webhookUrl, payload };
 }
+
 export async function sendWarToDiscord(war: any): Promise<DiscordWebhookSendResult> {
   try {
     const { webhookUrl, payload } = buildWarWebhookPayload(war);

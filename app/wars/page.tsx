@@ -10,6 +10,7 @@ import { Swords, Calendar, Users, TrendingUp } from 'lucide-react'
 import { createWarSlug } from '@/lib/warSlug'
 import Button from '@/components/ui/Button'
 import StartWarModal from '@/components/admin/StartWarModal'
+import { useTimezone } from '@/contexts/TimezoneContext'
 
 interface War {
   id: string
@@ -33,7 +34,7 @@ export default function WarsPage() {
   const [activeTab, setActiveTab] = useState<'active' | 'ended'>('active')
   const [userRole, setUserRole] = useState<string | null>(null)
   const [showStartWarModal, setShowStartWarModal] = useState(false)
-
+  const { formatDateTime } = useTimezone()
 
   useEffect(() => {
     fetchWars()
@@ -150,6 +151,7 @@ export default function WarsPage() {
     return level === 'LETHAL' ? 'Lethal' : 'Non-lethal'
   }
 
+
   const getWarLevelClasses = (level?: string) => {
     return level === 'LETHAL'
       ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
@@ -260,9 +262,7 @@ export default function WarsPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <Calendar className="w-4 h-4" />
-                    <span>
-                      {new Date(war.started_at).toLocaleDateString()}
-                    </span>
+                    <span>Started: {formatDateTime(war.started_at).split(',')[0]}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

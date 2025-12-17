@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Calendar, Users, Skull, FileText, Image as ImageIcon } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { useTimezone } from '@/contexts/TimezoneContext'
 
 interface EditWarLogModalProps {
   warId: string
@@ -34,10 +35,12 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
   const [loadingMembers, setLoadingMembers] = useState(true)
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   
+  const { formatDateTime, formatTime, useServerTime } = useTimezone()
+  
   // Parse date_time into date and time
   const dateObj = new Date(log.date_time)
-  const initialDate = dateObj.toISOString().split('T')[0]
-  const initialTime = dateObj.toTimeString().slice(0, 5)
+  const initialDate = formatDateTime(dateObj).split(',')[0]
+  const initialTime = formatTime(dateObj)
   
   const [formData, setFormData] = useState({
     date: initialDate,
@@ -56,6 +59,10 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
   useEffect(() => {
     fetchDiscordMembers()
   }, [])
+
+  useEffect(() => {
+    console.log('Date display updated:', formatDateTime(new Date()))
+  }, [useServerTime, formatDateTime])
 
   const fetchDiscordMembers = async () => {
     try {

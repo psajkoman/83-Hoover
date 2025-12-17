@@ -4,6 +4,8 @@ import Navbar from "@/components/layout/Navbar";
 import ActiveWarBanner from "@/components/layout/ActiveWarBanner";
 import Providers from "./providers";
 import Background from "@/components/Background";
+import Footer from "@/components/layout/Footer";
+import { TimezoneProvider } from "@/contexts/TimezoneContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,11 +24,16 @@ export default function RootLayout({ children }) {
       <body className={inter.variable} style={{ minHeight: '100vh' }}>
         <Background />
         <Providers>
-          <Navbar />
-          <ActiveWarBanner />
-          <main className="min-h-screen">
-            {children}
-          </main>
+          <TimezoneProvider>
+            <Navbar />
+            <ActiveWarBanner />
+            <div className="flex flex-col min-h-screen">
+              <main className="flex-grow">
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </TimezoneProvider>
         </Providers>
       </body>
     </html>

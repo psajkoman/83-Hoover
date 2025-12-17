@@ -6,19 +6,28 @@
 export function formatServerTime(dateString: string | Date | null | undefined): string {
   if (!dateString) return 'Unknown time';
   
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  const date = typeof dateString === 'string' ? new Date(dateString) : new Date(dateString);
   
   if (isNaN(date.getTime())) return 'Invalid date';
   
+  // Convert to London timezone
+  const londonDate = new Date(
+    date.toLocaleString('en-US', { timeZone: 'Europe/London' })
+  );
+  
+  // Get the timezone offset in minutes and convert to milliseconds
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  // Apply the offset to get the correct London time
+  const localDate = new Date(londonDate.getTime() - timezoneOffset);
+  
   // Format: 14 Dec 2025 at 11:32 pm
-  const day = date.getDate();
-  const month = date.toLocaleString('en-GB', { month: 'short', timeZone: 'Europe/London' });
-  const year = date.getFullYear();
-  const time = date.toLocaleString('en-GB', { 
+  const day = londonDate.getDate();
+  const month = londonDate.toLocaleString('en-GB', { month: 'short' });
+  const year = londonDate.getFullYear();
+  const time = londonDate.toLocaleString('en-GB', { 
     hour: 'numeric', 
     minute: '2-digit', 
-    hour12: true, 
-    timeZone: 'Europe/London' 
+    hour12: true
   }).toLowerCase();
   
   return `${day} ${month} ${year} at ${time}`;

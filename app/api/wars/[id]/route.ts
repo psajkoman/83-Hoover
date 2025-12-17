@@ -171,6 +171,15 @@ export async function PATCH(
             0
           )
 
+          const { data: lastDefense } = await supabase
+            .from('war_logs')
+            .select('*')
+            .eq('war_id', warId)
+            .eq('log_type', 'DEFENSE')
+            .order('date_time', { ascending: false })
+            .limit(1)
+            .single();
+
           await updateWarInDiscord(messageId, {
             id: (war as any).id,
             slug: (war as any).slug,
@@ -181,6 +190,7 @@ export async function PATCH(
             regulations: (war as any).regulations,
             scoreboard: { kills, deaths },
             siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+            lastDefense: lastDefense || null
           })
         } catch (error) {
           console.error('Failed to update war in Discord:', error)

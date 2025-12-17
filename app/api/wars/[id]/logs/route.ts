@@ -103,9 +103,10 @@ export async function POST(
       warId = warBySlug.id
     }
 
+    // Get user info including display name (nickname or username)
     const { data: user } = await supabase
       .from('users')
-      .select('id')
+      .select('id, username, discord_nick')
       .eq('discord_id', (session.user as any).discordId)
       .single()
 
@@ -162,6 +163,7 @@ export async function POST(
         notes: notes || null,
         evidence_url: evidence_url || null,
         submitted_by: user.id,
+        submitted_by_display_name: user.discord_nick || user.username,
       })
       .select(`
         *,
@@ -259,6 +261,28 @@ export async function POST(
             0
           )
 
+          const [
+            { data: lastDefense },
+            { data: lastAttack }
+          ] = await Promise.all([
+            supabase
+              .from('war_logs')
+              .select('*')
+              .eq('war_id', warId)
+              .eq('log_type', 'DEFENSE')
+              .order('date_time', { ascending: false })
+              .limit(1)
+              .single(),
+            supabase
+              .from('war_logs')
+              .select('*')
+              .eq('war_id', warId)
+              .eq('log_type', 'ATTACK')
+              .order('date_time', { ascending: false })
+              .limit(1)
+              .single()
+          ]);
+
           await updateWarInDiscord(messageId, {
             id: warId,
             slug: (warRow as any)?.slug,
@@ -269,6 +293,8 @@ export async function POST(
             regulations: (warRow as any)?.regulations,
             scoreboard: { kills, deaths },
             siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+            lastDefense: lastDefense || null,
+            lastAttack: lastAttack || null
           })
         }
       } catch (e) {

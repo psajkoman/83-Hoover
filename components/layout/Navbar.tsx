@@ -64,7 +64,7 @@ export default function Navbar() {
   }, [session])
 
   return (
-    <nav className="bg-gang-secondary/90 backdrop-blur-md border-b border-gang-accent/30 sticky top-0 z-40">
+    <nav className="bg-gang-secondary/95 backdrop-blur-md border-b border-gang-accent/30 sticky top-0 z-50 shadow-lg transition-shadow duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -108,7 +108,6 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* User Menu */}
           <div className="hidden md:flex items-center gap-3">
             {session ? (
               <>

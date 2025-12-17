@@ -1,58 +1,60 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
-import Card from '@/components/ui/Card'
+import { Plus } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import { Skull, Plus, Trash2, User } from 'lucide-react'
-import Image from 'next/image'
+import Card from '@/components/ui/Card'
+import { PlayerKillListItem } from './PlayerKillListItem'
+import { WarStatsCard } from './WarStatsCard'
+import { AddPlayerModal } from './AddPlayerModal'
+import { PKEntry } from '../../types/war'
 
-interface DiscordUser {
+type DiscordMember = {
   id: string
   username: string
-  discriminator: string
-  avatar: string | null
   nickname: string | null
-}
-
-interface PKEntry {
-  id: string
-  player_name: string
-  faction: string
-  discord_id: string | null
-  kill_count: number
-  last_killed_at: string
-  added_via: string
-  added_by_user: {
-    username: string
-    discord_id: string
-  }
-  discord_user?: DiscordUser | null
+  avatar: string | null
+  discriminator: string
 }
 
 interface PlayerKillListProps {
   warId: string
   enemyFaction: string
+  warStatus?: string
+  logs?: any[]
+  onUpdate?: () => void
 }
 
-export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListProps) {
+export function PlayerKillList({ 
+  warId, 
+  enemyFaction, 
+  warStatus = 'ACTIVE', 
+  logs = [],
+  onUpdate
+}: PlayerKillListProps) {
   const { data: session } = useSession()
   const [pkList, setPkList] = useState<PKEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFaction, setSelectedFaction] = useState<'FRIEND' | 'ENEMY'>('ENEMY')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [discordMembers, setDiscordMembers] = useState<DiscordUser[]>([])
+  const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+  const [warStats, setWarStats] = useState<{
+    logCounts: Record<string, number>;
+    topDeaths?: Array<[string, number]>;  
+    topKills: Array<[string, number, 'FRIEND' | 'ENEMY']>;
+    topSubmitters: Array<[string, number]>;
+    winner: 'FRIEND' | 'ENEMY' | 'DRAW';
+    friendKills: number;
+    enemyKills: number;
+  } | null>(null);
 
+  const isAdmin = Boolean(session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string))
+  const isWarEnded = warStatus === 'ENDED'
   const friendList = pkList.filter(p => p.faction === 'FRIEND').sort((a, b) => b.kill_count - a.kill_count)
   const enemyList = pkList.filter(p => p.faction === 'ENEMY').sort((a, b) => b.kill_count - a.kill_count)
 
-  const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role as string)
-
   const fetchPKList = useCallback(async () => {
-    setIsLoading(true)
     try {
       const res = await fetch(`/api/wars/${warId}/pk-list`)
       const data = await res.json()
@@ -79,43 +81,18 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
     }
   }
 
-  const getAvatarUrl = (user: { 
-    discord_id?: string;  
-    avatar: string | null; 
-    discriminator: string 
-  }) => {
-    if (!user) return null
-    if (user.avatar && user.discord_id) {  
-      return `https://cdn.discordapp.com/avatars/${user.discord_id}/${user.avatar}.png?size=64`
-    }
-    if (user.discriminator === '0') {
-      // New username system (no discriminator)
-      const defaultAvatar = user.discord_id ? (parseInt(user.discord_id) >> 22) % 6 : 0
-      return `https://cdn.discordapp.com/embed/avatars/${defaultAvatar}.png`
-    }
-    // Old username system with discriminator
-    const defaultAvatarNum = parseInt(user.discriminator) % 5
-    return `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNum}.png`
-  }
-
-  const handleAddPlayer = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim()) return
-    
-    setIsSubmitting(true)
-
+  const handleAddPlayer = async (faction: 'FRIEND' | 'ENEMY', playerName: string) => {
     try {
       const res = await fetch(`/api/wars/${warId}/pk-list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          player_name: searchQuery,
-          faction: selectedFaction
+          player_name: playerName,
+          faction
         }),
       })
 
       if (res.ok) {
-        setSearchQuery('')
         setShowAddModal(false)
         fetchPKList()
       } else {
@@ -125,8 +102,6 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
     } catch (error) {
       console.error('Error adding player:', error)
       alert('Failed to add player')
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -146,227 +121,189 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
     }
   }
 
-  const renderPlayer = (entry: PKEntry) => {
-    const discordUser = entry.discord_user
-    const displayName = discordUser?.username || entry.player_name
-    const avatarUrl = discordUser ? getAvatarUrl(discordUser) : null
- 
-    return (
-      <div
-        key={entry.id}
-        className="flex items-center justify-between px-3 py-2 bg-gang-primary/30 rounded hover:bg-gang-primary/50 transition-colors"
-      >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {avatarUrl ? (
-            <Image 
-              src={avatarUrl}
-              alt={displayName}
-              width={40}
-              height={40}
-              className="rounded-full"
-            />
-          ) : (
-            <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 text-gray-400" />
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-white truncate">
-              {entry.player_name}
-            </div>
-            {discordUser?.username && (
-              <div className="text-xs text-gray-400 truncate">
-                @{discordUser.username}
-                {discordUser.discriminator !== '0' && `#${discordUser.discriminator}`}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <span className="text-gang-highlight font-bold text-sm">×{entry.kill_count}</span>
-          {isAdmin && (
-            <button
-              onClick={() => handleRemovePlayer(entry.id)}
-              className="p-1 hover:bg-orange-500/20 rounded transition-colors text-gray-400 hover:text-white"
-              title="Remove from list"
-            >
-              <Trash2 className="w-3 h-3 text-orange-400" />
-            </button>
-          )}
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (!isWarEnded) {
+      setWarStats(null)
+      return
+    }
+
+    const logCounts = (logs || []).reduce<Record<string, number>>((acc, log) => {
+      if (log?.log_type) {
+        acc[log.log_type] = (acc[log.log_type] || 0) + 1
+      }
+      return acc
+    }, {})
+
+    // Track players killed in attacks (enemies killed by our faction)
+    const killCounts = (logs || [])
+      .filter((log: any) => log?.log_type === 'ATTACK' && Array.isArray(log.players_killed))
+      .flatMap((log: any) => log.players_killed || [])
+      .reduce<Record<string, number>>((acc, name: string) => {
+        if (typeof name === 'string' && name.trim()) {
+          acc[name] = (acc[name] || 0) + 1
+        }
+        return acc
+      }, {})
+
+    // Track our deaths (friends involved in defense logs)
+    const deathCounts = (logs || [])
+      .filter((log: any) => log?.log_type === 'DEFENSE' && Array.isArray(log.friends_involved))
+      .flatMap((log: any) => log.friends_involved || [])
+      .reduce<Record<string, number>>((acc, name: string) => {
+        if (typeof name === 'string' && name.trim()) {
+          acc[name] = (acc[name] || 0) + 1
+        }
+        return acc
+      }, {})
+
+    // Top players killed (both friends and enemies)
+    const topKills = [
+      ...Object.entries(killCounts).map(([name, count]) => [name, count, 'ENEMY'] as const),
+      ...Object.entries(deathCounts).map(([name, count]) => [name, count, 'FRIEND'] as const)
+    ]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5) as [string, number, 'FRIEND' | 'ENEMY'][];
+      
+    // Top deaths (our members who died in defense)
+    const topDeaths = Object.entries(deathCounts)
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
+      .slice(0, 5)
+
+    const submitterCounts = (logs || []).reduce<Record<string, number>>((acc, log: any) => {
+      const displayName = log?.submitted_by_display_name || log?.submitted_by_user?.username || log?.submitted_by;
+      if (displayName) {
+        acc[displayName] = (acc[displayName] || 0) + 1;
+      }
+      return acc;
+    }, {})
+
+    const topSubmitters = Object.entries(submitterCounts)
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
+      .slice(0, 5)
+
+    // Calculate friend and enemy kills from pkList
+    const friendKills = pkList
+      .filter(p => p.faction === 'FRIEND')
+      .reduce((sum, p) => sum + (p.kill_count || 0), 0)
+    
+    const enemyKills = pkList
+      .filter(p => p.faction === 'ENEMY')
+      .reduce((sum, p) => sum + (p.kill_count || 0), 0)
+
+    setWarStats({
+      logCounts,
+      topKills,
+      topSubmitters,
+      winner: friendKills > enemyKills ? 'FRIEND' : enemyKills > friendKills ? 'ENEMY' : 'DRAW',
+      friendKills,
+      enemyKills
+    })
+  }, [isWarEnded, logs, pkList])
 
   useEffect(() => {
     fetchPKList()
     fetchDiscordMembers()
-  }, [fetchPKList, warId])
+  }, [fetchPKList])
 
   return (
-    <Card variant="elevated">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Skull className="w-5 h-5 text-orange-400" />
-          <h3 className="font-bold text-xl text-white">Player Kill List</h3>
+    <div className="space-y-6">
+      <Card className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">
+            {isWarEnded ? 'Final Scoreboard' : 'Player Kill List'}
+          </h3>
+          {isAdmin && (
+            <Button 
+              onClick={() => setShowAddModal(true)} 
+              size="sm" 
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add
+            </Button>
+          )}
         </div>
-        {isAdmin && (
-          <Button onClick={() => setShowAddModal(true)} size="sm" className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add
-          </Button>
-        )}
-      </div>
 
-      {isLoading ? (
-        <div className="text-center py-8">
-          <div className="inline-block w-6 h-6 border-4 border-gang-highlight border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {/* Enemy Faction */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-orange-400">{enemyFaction}</h4>
-              <span className="text-xs text-gray-500">
+        {isLoading ? (
+          <div className="text-center py-8">
+            <div className="inline-block w-6 h-6 border-4 border-gang-highlight border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {/* Enemy Faction */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-orange-400">{enemyFaction}</h4>
+                <span className="text-xs text-gray-500">
                   {enemyList.reduce((sum, player) => sum + (player.kill_count || 1), 0)} deaths
-              </span>
-            </div>
-            {enemyList.length === 0 ? (
-              <div className="text-center py-4 bg-gang-primary/20 rounded">
-                <p className="text-xs text-gray-500">No kills yet</p>
+                </span>
               </div>
-            ) : (
-              <div className="space-y-1 max-h-96 overflow-y-auto">
-                {enemyList.map(renderPlayer)}
-              </div>
-            )}
-          </div>
-
-          {/* Low West Crew */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gang-highlight">Low West Crew</h4>
-              <span className="text-xs text-gray-500">
-                {friendList.reduce((sum, player) => sum + (player.kill_count || 1), 0)} deaths
-              </span>
-            </div>
-            {friendList.length === 0 ? (
-              <div className="text-center py-4 bg-gang-primary/20 rounded">
-                <p className="text-xs text-gray-500">No kills yet</p>
-              </div>
-            ) : (
-              <div className="space-y-1 max-h-96 overflow-y-auto">
-                {friendList.map(renderPlayer)}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Add Player Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gang-secondary border border-gray-700 rounded-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Add Player to PK List</h3>
-            <form onSubmit={handleAddPlayer}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Faction
-                </label>
-                <select
-                  value={selectedFaction}
-                  onChange={(e) => setSelectedFaction(e.target.value as 'FRIEND' | 'ENEMY')}
-                  className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
-                >
-                  <option value="ENEMY">{enemyFaction}</option>
-                  <option value="FRIEND">Low West Crew</option>
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Search Player
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Enter player name or select from list..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gang-highlight"
-                  />
-                  {searchQuery && (
-                    <div className="absolute z-10 mt-1 w-full bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {discordMembers
-                        .filter(member => 
-                          member.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (member.nickname?.toLowerCase().includes(searchQuery.toLowerCase()))
-                        )
-                        .slice(0, 5)
-                        .map(member => (
-                          <div 
-                            key={member.id}
-                            className="flex items-center gap-2 px-4 py-2 hover:bg-gang-highlight/20 cursor-pointer"
-                            onClick={() => {
-                              setSearchQuery(member.nickname || member.username)
-                            }}
-                          >
-                            <Image 
-                              src={member.avatar || '/default-avatar.png'}
-                              alt={member.username}
-                              width={40}
-                              height={40}
-                              className="rounded-full"
-                            />
-                            <div className="min-w-0">
-                              <div className="font-medium text-white truncate">
-                                {member.username}
-                              </div>
-                              {member.nickname && (
-                                <div className="text-xs text-gray-400 truncate">
-                                  @{member.username}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      {searchQuery && !isLoadingMembers && !discordMembers.some(m => 
-                        (m.nickname?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                        m.username.toLowerCase().includes(searchQuery.toLowerCase())
-                      ) && (
-                        <div className="px-4 py-2 text-sm text-gray-400">
-                          No matching players found. Press Enter to add manually.
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {enemyList.length === 0 ? (
+                <div className="text-center py-4 bg-gang-primary/20 rounded">
+                  <p className="text-xs text-gray-500">No kills yet</p>
                 </div>
+              ) : (
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {enemyList.map(entry => (
+                    <PlayerKillListItem
+                      key={entry.id}
+                      entry={entry}
+                      isAdmin={isAdmin}
+                      onRemove={handleRemovePlayer}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Friend Faction */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-gang-highlight">Low West Crew</h4>
+                <span className="text-xs text-gray-500">
+                  {friendList.reduce((sum, player) => sum + (player.kill_count || 1), 0)} deaths
+                </span>
               </div>
-              <div className="flex gap-3">
-                <Button 
-                  type="submit" 
-                  isLoading={isSubmitting} 
-                  className="flex-1"
-                  disabled={!searchQuery.trim()}
-                >
-                  {isSubmitting ? 'Adding...' : 'Add Player'}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  onClick={() => {
-                    setShowAddModal(false)
-                    setSearchQuery('')
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
+              {friendList.length === 0 ? (
+                <div className="text-center py-4 bg-gang-primary/20 rounded">
+                  <p className="text-xs text-gray-500">No kills yet</p>
+                </div>
+              ) : (
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {friendList.map(entry => (
+                    <PlayerKillListItem
+                      key={entry.id}
+                      entry={entry}
+                      isAdmin={isAdmin}
+                      onRemove={handleRemovePlayer}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+      </Card>
+
+      {/* War Statistics for Ended Wars */}
+      {isWarEnded && warStats && (
+        <WarStatsCard 
+          title="War Statistics"
+          enemyFaction={enemyFaction}
+          stats={warStats}
+          friendList={friendList}
+          enemyList={enemyList}
+        />
       )}
-    </Card>
+
+      <AddPlayerModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddPlayer}
+        enemyFaction={enemyFaction}
+        discordMembers={discordMembers}
+        isLoading={isLoadingMembers}
+      />
+    </div>
   )
 }

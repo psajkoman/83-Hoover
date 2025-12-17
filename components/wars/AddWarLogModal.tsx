@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { X, Calendar, Users, Skull, FileText, Image as ImageIcon } from 'lucide-react'
-import { format, parse } from 'date-fns';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns';
 import { useSession } from 'next-auth/react'
+import { useTimezone } from '@/contexts/TimezoneContext'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -26,10 +26,10 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
   const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([])
   const [loadingMembers, setLoadingMembers] = useState(true)
   const { data: session } = useSession()
+  const { getCurrentTime, formatDateTime, formatTime } = useTimezone()
 
   const getCurrentServerTime = () => {
-    const now = new Date();
-    return toZonedTime(now.toISOString(), 'Europe/London');
+    return new Date(getCurrentTime())
   }
 
   const isFutureDateTime = (dateStr: string, timeStr: string) => {
@@ -43,9 +43,10 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
   return false;
 };
   
+  const now = getCurrentServerTime()
   const [formData, setFormData] = useState({
-    date: format(getCurrentServerTime(), 'yyyy-MM-dd'),
-    time: format(getCurrentServerTime(), 'HH:mm'),
+    date: formatDateTime(now).split(',')[0],
+    time: formatTime(now),
     log_type: 'ATTACK' as 'ATTACK' | 'DEFENSE',
     members_involved: '',
     friends_involved: '',
@@ -152,16 +153,20 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Combine date and time in London timezone
-    const serverDateTime = parse(
-      `${formData.date} ${formData.time}`,
-      'yyyy-MM-dd HH:mm',
-      new Date()
-    );
     
-    const utcDateTime = fromZonedTime(serverDateTime, 'Europe/London');
+    // Check if the selected date/time is in the future
+    if (isFutureDateTime(formData.date, formData.time)) {
+      alert('Cannot create a log with a future date/time.')
+      return
+    }
     
-    const timestamp = utcDateTime.toISOString()
+    // Parse the date and time to a proper ISO string
+    const [hours, minutes] = formData.time.split(':').map(Number)
+    const date = new Date(formData.date)
+    date.setHours(hours, minutes, 0, 0)
+    
+    // The date is already in the correct timezone based on user preference
+    const isoDate = date.toISOString()
     setIsLoading(true)
 
     try {
@@ -231,12 +236,17 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
         }
       }
 
-      // First, submit the log to your API
+      // Combine date and time into a single Date object
+      const [hours, minutes] = formData.time.split(':').map(Number)
+      const logDate = new Date(formData.date)
+      logDate.setHours(hours, minutes, 0, 0)
+      
+      // Submit the log to your API
       const res = await fetch(`/api/wars/${warId}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date_time: timestamp,
+          date_time: logDate.toISOString(),
           log_type: formData.log_type,
           members_involved: membersInvolved,
           friends_involved: friendsArray,  // Use the parsed array instead of the raw string

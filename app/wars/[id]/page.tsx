@@ -3,12 +3,14 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { useTimezone } from '@/contexts/TimezoneContext'
+import CooldownStatus from '@/components/wars/CooldownStatus'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { Swords, Calendar, Copy, Check, Minus, Plus, ArrowLeft, Trash2, Edit2, Image as ImageIcon, X } from 'lucide-react'
+import { Swords, Calendar, Copy, Check, Minus, Plus, ArrowLeft, Trash2, Edit2, Image as ImageIcon, X, Clock } from 'lucide-react'
 import AddWarLogModal from '@/components/wars/AddWarLogModal'
 import WarRegulations from '@/components/wars/WarRegulations'
-import PlayerKillList from '@/components/wars/PlayerKillList'
+import { PlayerKillList } from '@/components/wars/PlayerKillList'
 import Image from 'next/image'
 
 interface War {
@@ -511,6 +513,7 @@ export default function WarDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { data: session } = useSession()
+  const { formatDateTime } = useTimezone()
   const warParam = params.id as string
   const [war, setWar] = useState<War | null>(null)
   const [logs, setLogs] = useState<WarLog[]>([])
@@ -884,14 +887,33 @@ const extractImageUrls = (text: string): string[] => {
                 {war.status}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-gray-400">
-              <Calendar className="w-4 h-4" />
-              <span>Started: {new Date(war.started_at).toLocaleString()}</span>
-              {war.ended_at && (
-                <span className="ml-4">
-                  Ended: {new Date(war.ended_at).toLocaleString()}
-                </span>
-              )}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-gray-400">
+                <Calendar className="w-4 h-4" />
+                <span>Started: {formatDateTime(war.started_at)}</span>
+                {war.ended_at && (
+                  <span className="ml-4">
+                    Ended: {formatDateTime(war.ended_at)}
+                  </span>
+                )}
+              </div>
+              {war.status === 'ACTIVE' && (() => {
+                // Sort logs by date_time in descending order to get the most recent log
+                const sortedLogs = [...logs].sort((a, b) => 
+                  new Date(b.date_time).getTime() - new Date(a.date_time).getTime()
+                );
+                const lastEncounterTime = sortedLogs.length > 0 ? sortedLogs[0]?.date_time : war.started_at;
+                               
+                return (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <CooldownStatus 
+                      lastEncounterTime={lastEncounterTime}
+                      cooldownHours={war.regulations?.attacking_cooldown_hours || 6}
+                    />
+                  </div>
+                );
+              })()}
             </div>
           </div>
           {session && war.status === 'ACTIVE' && (
@@ -909,7 +931,12 @@ const extractImageUrls = (text: string): string[] => {
         {war.regulations && (
           <WarRegulations warType={war.war_type} regulations={war.regulations} />
         )}
-        <PlayerKillList warId={warParam} enemyFaction={war.enemy_faction} />
+        <PlayerKillList 
+          warId={warParam} 
+          enemyFaction={war.enemy_faction} 
+          warStatus={war.status}
+          logs={logs}
+        />
       </div>
 
       {/* War Logs */}
@@ -940,13 +967,13 @@ const extractImageUrls = (text: string): string[] => {
                     </span>
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className="text-white font-medium">
-                      {new Date(log.date_time).toLocaleString()}
+                      {formatDateTime(log.date_time)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-400">
                     <span 
                       className="hover:text-white cursor-help transition-colors" 
-                      title={`Created on ${new Date(log.created_at).toLocaleString()}`}
+                      title={`Created on ${formatDateTime(log.created_at)}`}
                     >
                       Created by {getServerDisplayName(log.submitted_by_user?.discord_id, log.submitted_by_user?.username)}
                     </span>
@@ -955,7 +982,7 @@ const extractImageUrls = (text: string): string[] => {
                         {', '}
                         <span 
                           className="hover:text-white cursor-help transition-colors" 
-                          title={`Edited on ${new Date(log.edited_at!).toLocaleString()}`}
+                          title={`Edited on ${formatDateTime(log.edited_at!)}`}
                         >
                           edited by {getServerDisplayName(log.edited_by_user?.discord_id, log.edited_by_user?.username)}
                         </span>
