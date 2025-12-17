@@ -3,6 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import ActiveWarBanner from "@/components/layout/ActiveWarBanner";
 import Providers from "./providers";
+import Background from "@/components/Background";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,14 +19,8 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.variable} style={{
-        backgroundColor: "black",
-        backgroundImage: "url('/wp9075005.webp')",
-        backgroundSize: "contain",
-        backgroundPosition: "top",
-        backgroundRepeat: "repeat",
-        backdropFilter: "blur(45px) brightness(0.5)",
-      }}>
+      <body className={inter.variable} style={{ minHeight: '100vh' }}>
+        <Background />
         <Providers>
           <Navbar />
           <ActiveWarBanner />

@@ -32,12 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: wars, error } = await query
-    console.log('Wars data:', JSON.stringify(wars, null, 2))
-    if (wars && wars.length > 0) {
-      console.log('First war logs:', wars[0])
-      console.log('First war logs count:', wars[0])
-    }
-
+    
     if (error) {
       console.error('Error fetching wars:', error)
       return NextResponse.json(
