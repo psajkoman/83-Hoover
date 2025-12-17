@@ -47,6 +47,22 @@ interface WarLog {
   } | null
 }
 
+const getTimeRemaining = (createdAt: string): string => {
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+  const logAge = Date.now() - new Date(createdAt).getTime()
+  const timeLeft = TWENTY_FOUR_HOURS - logAge
+  
+  if (timeLeft <= 0) return 'Locked'
+  
+  const hours = Math.floor(timeLeft / (1000 * 60 * 60))
+  const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
+  
+  if (hours > 0) {
+    return `Locks in ${hours} hour${hours > 1 ? 's' : ''}${minutes > 0 ? `, ${minutes} minute${minutes > 1 ? 's' : ''}` : ''}`
+  }
+  return `Locks in ${minutes} minute${minutes !== 1 ? 's' : ''}`
+}
+
 // Add this helper function before the ZoomedImageModal component
 const getVideoThumbnail = (videoUrl: string) => {
   try {
@@ -608,17 +624,20 @@ const extractImageUrls = (text: string): string[] => {
     const userDiscordId = (session.user as any).discordId
     const userRole = (session.user as any).role
     const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)
-    const isOwner = log.submitted_by_user.discord_id === userDiscordId
+    // const isOwner = log.submitted_by_user.discord_id === userDiscordId
     
     // If user is admin, they can always edit
     if (isAdmin) return true
     
     // If not admin, check if user is owner and log is within 24 hours
-    if (isOwner) {
-      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
-      const logAge = Date.now() - new Date(log.created_at).getTime()
-      return logAge <= TWENTY_FOUR_HOURS
-    }
+    // if (isOwner) {
+    //   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+    //   const logAge = Date.now() - new Date(log.created_at).getTime()
+    //   return logAge <= TWENTY_FOUR_HOURS
+    // }
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+    const logAge = Date.now() - new Date(log.created_at).getTime()
+    return logAge <= TWENTY_FOUR_HOURS
     
     return false
   }
@@ -975,7 +994,7 @@ const extractImageUrls = (text: string): string[] => {
                         <button
                           onClick={() => startEditing(log)}
                           className="p-2 hover:bg-gang-highlight/20 rounded transition-colors"
-                          title="Edit log"
+                          title={`Edit log (${getTimeRemaining(log.created_at)})`}
                         >
                           <Edit2 className="w-4 h-4 text-gang-highlight" />
                         </button>

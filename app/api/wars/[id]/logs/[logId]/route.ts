@@ -44,7 +44,7 @@ export async function PATCH(
       .single()
 
     const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)
-    const isOwner = log?.submitted_by === user.id
+    // const isOwner = log?.submitted_by === user.id
 
     // Add time check (24 hours in milliseconds)
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
@@ -52,9 +52,9 @@ export async function PATCH(
     const isOlderThan24Hours = logAge > TWENTY_FOUR_HOURS
 
     if (!isAdmin) {
-      if (!isOwner) {
-        return NextResponse.json({ error: 'You can only edit your own logs' }, { status: 403 })
-      }
+      // if (!isOwner) {
+      //   return NextResponse.json({ error: 'You can only edit your own logs' }, { status: 403 })
+      // }
       if (isOlderThan24Hours) {
         return NextResponse.json(
           { error: 'Logs can only be edited within 24 hours of creation' }, 
