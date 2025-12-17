@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { Flame } from 'lucide-react'
+import { isWarHotSimple } from '@/lib/warUtils'
 import Card from '@/components/ui/Card'
 import { Swords, Calendar, Users, TrendingUp } from 'lucide-react'
 import { createWarSlug } from '@/lib/warSlug'
@@ -17,7 +19,9 @@ interface War {
   war_level?: string
   started_at: string
   ended_at: string | null
-  war_logs: { count: number }[]
+  war_logs: {
+    date_time: string
+  }[]
 }
 
 export default function WarsPage() {
@@ -49,38 +53,95 @@ export default function WarsPage() {
     fetchRole()
   }, [session])
 
+    
+  const sortWars = (wars: War[]) => {
+    const sorted = [...wars].sort((a, b) => {
+      // First priority: Hot wars come first
+      const aIsHot = isWarHotSimple(a);
+      const bIsHot = isWarHotSimple(b);
+      
+      if (aIsHot && !bIsHot) return -1;
+      if (!aIsHot && bIsHot) return 1;
+      
+      // Sort logs by date in descending order
+      const aLogs = [...(a.war_logs || [])].sort((x, y) => 
+        new Date(y.date_time).getTime() - new Date(x.date_time).getTime()
+      );
+      const bLogs = [...(b.war_logs || [])].sort((x, y) => 
+        new Date(y.date_time).getTime() - new Date(x.date_time).getTime()
+      );
+      
+      const aLatestLog = aLogs[0]?.date_time;
+      const bLatestLog = bLogs[0]?.date_time;
+      
+      // If both have logs, sort by most recent log
+      if (aLatestLog && bLatestLog) {
+        return new Date(bLatestLog).getTime() - new Date(aLatestLog).getTime();
+      }
+      
+      // If only one has logs, it comes first
+      if (aLatestLog) return -1;
+      if (bLatestLog) return 1;
+      
+      // If neither has logs, sort by start date (newest first)
+      return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
+    });
+    return sorted;
+  };
+
   const fetchWars = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const [activeRes, endedRes] = await Promise.all([
         fetch('/api/wars?status=ACTIVE', { 
-          credentials: 'include'  // This is needed to include cookies
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
         }),
         fetch('/api/wars?status=ENDED', { 
-          credentials: 'include'  // This is needed to include cookies
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
         }),
-      ])
-
+      ]);
 
       if (!activeRes.ok || !endedRes.ok) {
-        throw new Error('Failed to fetch wars')
+        throw new Error('Failed to fetch wars');
       }
 
-      const activeData = await activeRes.json()
-      const endedData = await endedRes.json()
+      const activeData = await activeRes.json();
+      const endedData = await endedRes.json();
 
-      setActiveWars(activeData.wars || [])
-      setEndedWars(endedData.wars || [])
+      // Debug logging
+      console.log('Active wars raw data:', JSON.stringify(activeData.wars, null, 2));
+      console.log('Ended wars raw data:', JSON.stringify(endedData.wars, null, 2));
+
+      // Sort the wars
+      const sortedActiveWars = sortWars(activeData.wars || []);
+      const sortedEndedWars = sortWars(endedData.wars || []);
+
+      // Debug logging for sorted results
+      console.log('Sorted active wars:', sortedActiveWars.map((w: War) => ({
+        enemy_faction: w.enemy_faction,
+        hasLogs: !!w.war_logs?.length,
+        latestLog: w.war_logs?.[0]?.date_time,
+        isHot: isWarHotSimple(w)
+      })));
+
+      setActiveWars(sortedActiveWars);
+      setEndedWars(sortedEndedWars);
     } catch (error) {
-      console.error('Error fetching wars:', error)
-      // Handle error (e.g., show error message to user)
+      console.error('Error fetching wars:', error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const getLogCount = (war: War) => {
-    return war.war_logs?.[0]?.count || 0
+    console.log('WAR ', war)
+    return war.war_logs.length || 0
   }
 
   const wars = activeTab === 'active' ? activeWars : endedWars
@@ -182,7 +243,9 @@ export default function WarsPage() {
           {wars.map((war) => (
             <Card
               key={war.id}
-              className="cursor-pointer hover:border-gang-highlight transition-all"
+              className={`cursor-pointer hover:border-gang-highlight transition-all relative ${
+                isWarHotSimple(war) ? 'border-2 border-orange-500' : 'border border-gray-700'
+              }`}
               onClick={() => router.push(`/wars/${war.slug || createWarSlug(war.enemy_faction, war.started_at) || war.id}`)}
             >
               <div className="flex items-start justify-between mb-4">
@@ -202,15 +265,23 @@ export default function WarsPage() {
                     </span>
                   </div>
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    war.status === 'ACTIVE'
-                      ? 'bg-gang-highlight/20 text-gang-highlight'
-                      : 'bg-gray-600/20 text-gray-400'
-                  }`}
-                >
-                  {war.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  {isWarHotSimple(war) && (
+                    <span className="bg-gradient-to-r from-orange-500 to-red-600 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                      <Flame className="w-3 h-3" />
+                      HOT
+                    </span>
+                  )}
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      war.status === 'ACTIVE'
+                        ? 'bg-gang-highlight/20 text-gang-highlight'
+                        : 'bg-gray-600/20 text-gray-400'
+                    }`}
+                  >
+                    {war.status}
+                  </span>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-gray-700">

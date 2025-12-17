@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { buildEncounterWebhookPayload, deleteDiscordWebhookMessage, editDiscordWebhookMessage, resolveDiscordAuthor } from '@/lib/discord'
+import { buildEncounterWebhookPayload, deleteDiscordWebhookMessage, editDiscordWebhookMessage, resolveDiscordAuthor, updateWarInDiscord } from '@/lib/discord'
 import { formatServerTime } from '@/lib/dateUtils'
 
 // Edit a war log
@@ -172,6 +172,49 @@ export async function PATCH(
       console.warn('Failed to sync edited log to Discord:', e)
     }
 
+    // Update current war embed scoreboard (best effort)
+    try {
+      const warId = (log as any)?.war_id
+      if (warId) {
+        const { data: warRow } = await supabase
+          .from('faction_wars')
+          .select('discord_message_id, enemy_faction, slug, war_level, war_type, started_at, regulations')
+          .eq('id', warId)
+          .single()
+
+        const messageId = (warRow as any)?.discord_message_id as string | null
+        if (messageId) {
+          const { data: logs } = await supabase
+            .from('war_logs')
+            .select('players_killed, friends_involved')
+            .eq('war_id', warId)
+
+          const kills = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.players_killed) ? l.players_killed.length : 0),
+            0
+          )
+          const deaths = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.friends_involved) ? l.friends_involved.length : 0),
+            0
+          )
+
+          await updateWarInDiscord(messageId, {
+            id: warId,
+            slug: (warRow as any)?.slug,
+            enemy_faction: (warRow as any)?.enemy_faction,
+            war_level: (warRow as any)?.war_level,
+            war_type: (warRow as any)?.war_type,
+            started_at: (warRow as any)?.started_at,
+            regulations: (warRow as any)?.regulations,
+            scoreboard: { kills, deaths },
+            siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+          })
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to update current war embed after log edit:', e)
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error updating war log:', error)
@@ -277,6 +320,49 @@ export async function DELETE(
       }
     } catch (e) {
       console.warn('Failed to recompute war level after delete:', e)
+    }
+
+    // Update current war embed scoreboard (best effort)
+    try {
+      const warId = (existingLog as any)?.war_id
+      if (warId) {
+        const { data: warRow } = await supabase
+          .from('faction_wars')
+          .select('discord_message_id, enemy_faction, slug, war_level, war_type, started_at, regulations')
+          .eq('id', warId)
+          .single()
+
+        const messageId = (warRow as any)?.discord_message_id as string | null
+        if (messageId) {
+          const { data: logs } = await supabase
+            .from('war_logs')
+            .select('players_killed, friends_involved')
+            .eq('war_id', warId)
+
+          const kills = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.players_killed) ? l.players_killed.length : 0),
+            0
+          )
+          const deaths = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.friends_involved) ? l.friends_involved.length : 0),
+            0
+          )
+
+          await updateWarInDiscord(messageId, {
+            id: warId,
+            slug: (warRow as any)?.slug,
+            enemy_faction: (warRow as any)?.enemy_faction,
+            war_level: (warRow as any)?.war_level,
+            war_type: (warRow as any)?.war_type,
+            started_at: (warRow as any)?.started_at,
+            regulations: (warRow as any)?.regulations,
+            scoreboard: { kills, deaths },
+            siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+          })
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to update current war embed after log delete:', e)
     }
 
     return NextResponse.json({ success: true })

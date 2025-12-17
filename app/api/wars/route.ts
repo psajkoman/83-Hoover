@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { createWarSlug } from '@/lib/warSlug'
+import { sendWarToDiscord } from '@/lib/discord'
 
 type War = Database['public']['Tables']['faction_wars']['Row']
 
@@ -19,7 +20,10 @@ export async function GET(request: NextRequest) {
       .from('faction_wars')
       .select(`
         *,
-        war_logs:war_logs(count)
+        war_logs:war_logs(
+          date_time
+        ).order('date_time', { ascending: false }),
+        war_logs_count:war_logs(count)
       `)
       .order('created_at', { ascending: false })
 
@@ -28,6 +32,11 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: wars, error } = await query
+    console.log('Wars data:', JSON.stringify(wars, null, 2))
+    if (wars && wars.length > 0) {
+      console.log('First war logs:', wars[0])
+      console.log('First war logs count:', wars[0])
+    }
 
     if (error) {
       console.error('Error fetching wars:', error)
@@ -55,14 +64,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = supabaseAdmin
+    const supabase = supabaseAdmin as any
 
     // Check user role
     const { data: user } = await supabase
       .from('users')
       .select('id, role')
       .eq('discord_id', (session.user as any).discordId)
-      .single<{ id: string; role: 'ADMIN' | 'LEADER' | 'MODERATOR' | 'MEMBER' | 'GUEST' }>()
+      .single()
 
     if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -95,14 +104,7 @@ export async function POST(request: NextRequest) {
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single<{
-          attacking_cooldown_hours: number
-          pk_cooldown_type: string
-          pk_cooldown_days: number
-          max_participants: number
-          max_assault_rifles: number
-          weapon_restrictions: any
-        }>()
+        .single()
 
       if (globalRegs) {
         warRegulations = {
@@ -175,7 +177,33 @@ export async function POST(request: NextRequest) {
     if (error) {
       throw error
     }
-    
+
+    if (war) {
+      // Add discord_message_id to the war in the database (best effort)
+      try {
+        const discordResult = await sendWarToDiscord({
+          ...war,
+          scoreboard: { kills: 0, deaths: 0 },
+          siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+        })
+
+        if (discordResult.ok && discordResult.messageId) {
+          await supabase
+            .from('faction_wars')
+            .update({
+              discord_message_id: discordResult.messageId,
+              discord_channel_id: discordResult.channelId || null,
+            })
+            .eq('id', war.id)
+        }
+      } catch (error) {
+        console.error('Failed to send war to Discord:', error)
+        // Don't fail the request if Discord integration fails
+      }
+
+      return NextResponse.json({ war }, { status: 201 })
+    }
+
     return NextResponse.json({ war }, { status: 201 })
   } catch (error: any) {
     console.error('Error in POST /api/wars:', error)

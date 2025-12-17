@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Swords, Plus, Edit2, X } from 'lucide-react'
@@ -175,7 +176,9 @@ export default function WarManagement() {
               className="flex items-center justify-between p-3 bg-gang-primary/30 rounded-lg"
             >
               <div>
-                <div className="text-white font-medium">{war.enemy_faction}</div>
+                <Link href={`/wars/${war.slug || war.id}`} className="text-white font-medium hover:text-gang-highlight transition-colors">
+                  {war.enemy_faction}
+                </Link>
                 <div className="text-xs text-gray-400">
                   Started {new Date(war.started_at).toLocaleDateString()}
                 </div>

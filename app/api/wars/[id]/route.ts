@@ -5,6 +5,7 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isUuid } from '@/lib/warSlug'
+import { deleteWarFromDiscord, updateWarInDiscord } from '@/lib/discord'
 
 export async function GET(
   request: NextRequest,
@@ -135,6 +136,60 @@ export async function PATCH(
       .single()
 
     if (error) throw error
+
+    if (war) {
+      const messageId = (war as any).discord_message_id as string | null
+
+      if (status === 'ENDED' && messageId) {
+        try {
+          await deleteWarFromDiscord(messageId)
+        } catch (e) {
+          console.warn('Failed to delete current war embed from Discord:', e)
+        }
+
+        try {
+          await supabase
+            .from('faction_wars')
+            .update({ discord_message_id: null, discord_channel_id: null } as any)
+            .eq('id', warId)
+        } catch (e) {
+          console.warn('Failed to clear Discord fields for ended war:', e)
+        }
+      } else if (messageId) {
+        try {
+          const { data: logs } = await supabase
+            .from('war_logs')
+            .select('players_killed, friends_involved')
+            .eq('war_id', warId)
+
+          const kills = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.players_killed) ? l.players_killed.length : 0),
+            0
+          )
+          const deaths = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.friends_involved) ? l.friends_involved.length : 0),
+            0
+          )
+
+          await updateWarInDiscord(messageId, {
+            id: (war as any).id,
+            slug: (war as any).slug,
+            enemy_faction: (war as any).enemy_faction,
+            war_level: (war as any).war_level,
+            war_type: (war as any).war_type,
+            started_at: (war as any).started_at,
+            regulations: (war as any).regulations,
+            scoreboard: { kills, deaths },
+            siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+          })
+        } catch (error) {
+          console.error('Failed to update war in Discord:', error)
+          // Don't fail the request if Discord update fails
+        }
+      }
+
+      return NextResponse.json({ war })
+    }
 
     return NextResponse.json({ war })
   } catch (error) {

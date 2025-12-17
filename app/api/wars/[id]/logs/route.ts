@@ -5,7 +5,7 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isUuid } from '@/lib/warSlug'
-import { resolveDiscordAuthor, sendEncounterLogToDiscord } from '@/lib/discord'
+import { resolveDiscordAuthor, sendEncounterLogToDiscord, updateWarInDiscord } from '@/lib/discord'
 import { formatServerTime } from '@/lib/dateUtils'
 
 export async function GET(
@@ -177,7 +177,7 @@ export async function POST(
     try {
       const { data: warRow, error: warRowError } = await supabase
         .from('faction_wars')
-        .select('war_level, enemy_faction, started_at, slug')
+        .select('war_level, enemy_faction, started_at, slug, war_type, regulations, discord_message_id')
         .eq('id', warId)
         .single()
 
@@ -239,6 +239,40 @@ export async function POST(
         }
       } catch (e) {
         console.warn('Failed to send war log to Discord:', e)
+      }
+
+      // Update current war embed scoreboard (best effort)
+      try {
+        const messageId = (warRow as any)?.discord_message_id as string | null
+        if (messageId) {
+          const { data: logs } = await supabase
+            .from('war_logs')
+            .select('players_killed, friends_involved')
+            .eq('war_id', warId)
+
+          const kills = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.players_killed) ? l.players_killed.length : 0),
+            0
+          )
+          const deaths = (logs || []).reduce(
+            (sum: number, l: any) => sum + (Array.isArray(l.friends_involved) ? l.friends_involved.length : 0),
+            0
+          )
+
+          await updateWarInDiscord(messageId, {
+            id: warId,
+            slug: (warRow as any)?.slug,
+            enemy_faction: (warRow as any)?.enemy_faction,
+            war_level: currentWarLevel || (warRow as any)?.war_level,
+            war_type: (warRow as any)?.war_type,
+            started_at: (warRow as any)?.started_at,
+            regulations: (warRow as any)?.regulations,
+            scoreboard: { kills, deaths },
+            siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+          })
+        }
+      } catch (e) {
+        console.warn('Failed to update current war embed after log create:', e)
       }
     } catch (e) {
       console.warn('Failed to compute/update war level:', e)

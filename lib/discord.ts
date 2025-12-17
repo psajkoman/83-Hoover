@@ -23,6 +23,29 @@ type DiscordWebhookSendResult = {
   raw?: any;
 };
 
+type WarRegulations = {
+  attacking_cooldown_hours?: number;
+  pk_cooldown_type?: string;
+  pk_cooldown_days?: number;
+  max_participants?: number;
+  weapon_restrictions?: any;
+};
+
+type CurrentWarEmbedInput = {
+  id: string;
+  slug?: string | null;
+  enemy_faction: string;
+  war_level?: string | null;
+  war_type?: string | null;
+  started_at?: string | null;
+  regulations?: WarRegulations | null;
+  scoreboard?: {
+    kills: number;
+    deaths: number;
+  };
+  siteUrl?: string;
+};
+
 const withWait = (webhookUrl: string) => {
   // Discord supports ?wait=true to return the created message payload.
   if (webhookUrl.includes('?')) return `${webhookUrl}&wait=true`;
@@ -319,6 +342,173 @@ export async function deleteDiscordWebhookMessage(
     return response.ok;
   } catch (error) {
     console.error('Failed to delete Discord webhook message:', error);
+    return false;
+  }
+}
+
+export function buildWarWebhookPayload(war: {
+  id: string;
+  slug?: string | null;
+  enemy_faction: string;
+  war_level?: string | null;
+  war_type?: string | null;
+  started_at?: string | null;
+  regulations?: WarRegulations | null;
+  scoreboard?: {
+    kills: number;
+    deaths: number;
+  };
+  siteUrl?: string;
+}): { webhookUrl: string; payload: DiscordWebhookPayload } {
+  const webhookUrl = process.env.DISCORD_CURRENT_WARS_WEBHOOK;
+  
+  if (!webhookUrl) {
+    throw new Error('No webhook URL configured for current wars');
+  }
+
+  const baseUrl = (war.siteUrl || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+  const warUrl = baseUrl ? `${baseUrl}/wars/${war.slug || war.id}` : undefined;
+  
+  // Calculate scoreboard (kills - deaths)
+  const totalKills = war.scoreboard?.kills ?? 0;
+  const totalDeaths = war.scoreboard?.deaths ?? 0;
+  const scoreDiff = totalKills - totalDeaths;
+  const scoreText = scoreDiff > 0 
+    ? `+${scoreDiff} up` 
+    : scoreDiff < 0 
+      ? `${scoreDiff} down` 
+      : 'Even';
+
+  const regs = war.regulations || {};
+  const pkCooldownType = (regs.pk_cooldown_type || '').toLowerCase();
+  const pkCooldownText = pkCooldownType === 'permanent'
+    ? 'Permanent'
+    : (typeof regs.pk_cooldown_days === 'number' ? `${regs.pk_cooldown_days} days` : 'Not specified');
+
+  const attackCooldownText = typeof regs.attacking_cooldown_hours === 'number'
+    ? `${regs.attacking_cooldown_hours} hours`
+    : 'Not specified';
+
+  const maxParticipantsText = typeof regs.max_participants === 'number'
+    ? `${regs.max_participants} members per attack`
+    : 'Not specified';
+
+  const weaponRestrictionsText = (regs.weapon_restrictions === null || regs.weapon_restrictions === undefined)
+    ? 'None'
+    : (typeof regs.weapon_restrictions === 'string'
+        ? regs.weapon_restrictions
+        : (Array.isArray(regs.weapon_restrictions)
+            ? regs.weapon_restrictions.join(', ') || 'None'
+            : JSON.stringify(regs.weapon_restrictions)));
+
+  // Format regulations
+  const regulationsText = [
+    `**Attack Cooldown:** ${attackCooldownText}`,
+    `**PK Cooldown:** ${pkCooldownText}`,
+    `**Max Participants:** ${maxParticipantsText}`,
+    `**Weapon Restrictions:** ${weaponRestrictionsText || 'None'}`
+  ].join('\n');
+
+  const warLevel = (war.war_level || 'NON_LETHAL').toUpperCase();
+  const warType = (war.war_type || 'UNCONTROLLED').toUpperCase();
+  const startedAt = war.started_at ? new Date(war.started_at) : null;
+
+  // Format the date and time as MMM Do [at] h:mm A
+  const formatTime = (date: Date) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getUTCMonth()];
+    const day = date.getUTCDate();
+    const daySuffix = 
+      day % 10 === 1 && day !== 11 ? 'st' :
+      day % 10 === 2 && day !== 12 ? 'nd' :
+      day % 10 === 3 && day !== 13 ? 'rd' : 'th';
+    
+    let hours = date.getUTCHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // Convert 0 to 12
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    
+    return `${month} ${day}${daySuffix} at ${hours}:${minutes} ${ampm}`;
+  };
+
+  const currentTime = new Date();
+  const formattedTime = formatTime(currentTime);
+
+  const payload: DiscordWebhookPayload = {
+    embeds: [{
+      title: war.enemy_faction,
+      url: warUrl,
+      color: warLevel === 'LETHAL' ? 0xE74C3C : 0x3498DB,
+      fields: [
+        {
+          name: '`WAR LEVEL`',
+          value: warLevel === 'LETHAL' ? '🔥 Lethal' : '🛡️ Non-lethal',
+          inline: true
+        },
+        {
+          name: '`WAR TYPE`',
+          value: warType === 'CONTROLLED' ? '🎯 Controlled' : '🌪️ Uncontrolled',
+          inline: true
+        },
+        {
+          name: '`START DATE`',
+          value: startedAt ? formatTime(startedAt) : 'Unknown',
+          inline: true
+        },
+        {
+          name: '`SCOREBOARD`',
+          value: scoreText,
+          inline: true
+        },
+        {
+          name: '`WAR REGULATIONS`',
+          value: regulationsText,
+          inline: false
+        }
+      ],
+footer: {
+        text: `Updated on ${formattedTime}`
+      },
+      timestamp: undefined
+    }]
+  };
+  return { webhookUrl, payload };
+}
+export async function sendWarToDiscord(war: any): Promise<DiscordWebhookSendResult> {
+  try {
+    const { webhookUrl, payload } = buildWarWebhookPayload(war);
+    const result = await sendToDiscordWebhook(webhookUrl, payload);
+    
+    if (!result.ok) {
+      throw new Error('Failed to send war to Discord');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in sendWarToDiscord:', error);
+    return { ok: false };
+  }
+}
+export async function updateWarInDiscord(messageId: string, war: CurrentWarEmbedInput): Promise<boolean> {
+  try {
+    const { webhookUrl, payload } = buildWarWebhookPayload(war);
+    return await editDiscordWebhookMessage(webhookUrl, messageId, payload);
+  } catch (error) {
+    console.error('Error in updateWarInDiscord:', error);
+    return false;
+  }
+}
+
+export async function deleteWarFromDiscord(messageId: string): Promise<boolean> {
+  try {
+    const webhookUrl = process.env.DISCORD_CURRENT_WARS_WEBHOOK;
+    if (!webhookUrl) {
+      throw new Error('No webhook URL configured for current wars');
+    }
+    return await deleteDiscordWebhookMessage(webhookUrl, messageId);
+  } catch (error) {
+    console.error('Error in deleteWarFromDiscord:', error);
     return false;
   }
 }

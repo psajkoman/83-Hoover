@@ -306,6 +306,8 @@ export type Database = {
           slug?: string | null
           started_at?: string
           ended_at?: string | null
+          discord_message_id?: string | null
+          discord_channel_id?: string | null
           regulations: Json
           attacking_cooldown_hours: number
           pk_cooldown_type: string
@@ -326,6 +328,8 @@ export type Database = {
           slug?: string | null
           started_at?: string
           ended_at?: string | null
+          discord_message_id?: string | null
+          discord_channel_id?: string | null
           regulations: Json
           attacking_cooldown_hours?: number
           pk_cooldown_type?: string
@@ -346,6 +350,8 @@ export type Database = {
           slug?: string | null
           started_at?: string
           ended_at?: string | null
+          discord_message_id?: string | null
+          discord_channel_id?: string | null
           regulations?: Json
           attacking_cooldown_hours?: number
           pk_cooldown_type?: string
