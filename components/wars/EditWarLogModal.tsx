@@ -298,7 +298,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
             </label>
             <Input
               type="text"
-              placeholder="Start typing to see Discord suggestions..."
+              // placeholder="Start typing to see Discord suggestions..."
               value={formData.members_involved}
               onChange={(e) => handleMembersChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowMembersDropdown(false), 200)}
@@ -349,7 +349,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
             
             <Input
               type="text"
-              placeholder="Start typing to see Discord suggestions..."
+              // placeholder="Start typing to see Discord suggestions..."
               value={formData.friends_involved}
               onChange={(e) => handleFriendsChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
@@ -400,7 +400,7 @@ export default function EditWarLogModal({ warId, log, onClose, onSuccess }: Edit
             
             <Input
               type="text"
-              placeholder="Start typing to see Discord suggestions..."
+              // placeholder="Start typing to see Discord suggestions..."
               value={formData.players_killed}
               onChange={(e) => handlePlayersChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowPlayersDropdown(false), 200)}

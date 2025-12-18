@@ -249,10 +249,10 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
           date_time: logDate.toISOString(),
           log_type: formData.log_type,
           members_involved: membersInvolved,
-          friends_involved: friendsArray,  // Use the parsed array instead of the raw string
-          players_killed: playersKilled,   // Use the parsed array instead of the raw string
-          notes: formData.notes || null,   // Ensure null is sent if empty
-          evidence_url: formData.evidence_url || null,  // Ensure null is sent if empty
+          friends_involved: friendsArray,
+          players_killed: playersKilled,
+          notes: formData.notes || null,
+          evidence_url: formData.evidence_url || null,
         }),
       })
 

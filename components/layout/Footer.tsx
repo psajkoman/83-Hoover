@@ -40,33 +40,35 @@ export default function Footer() {
     console.log('Timezone changed:', useServerTime ? 'Server Time' : 'Local Time')
   }, [useServerTime])
   return (
-    <footer className="bg-gang-secondary/80 border-t border-gang-accent/30 py-4 px-4">
-      <div className="max-w-7xl mx-auto h-16 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Tooltip content={`Switch to ${useServerTime ? 'Local' : 'Server'} Time`}>
-            <button
-              onClick={toggleTimeDisplay}
-              className="p-2 rounded-md hover:bg-gang-accent/20 transition-colors text-gray-300 hover:text-white"
-              aria-label="Toggle time display"
-            >
-              {useServerTime ? (
-                <Clock3 className="w-5 h-5" />
-              ) : (
-                <Clock className="w-5 h-5" />
-              )}
-            </button>
-          </Tooltip>
-          <div className="flex flex-col">
-            <div className="text-sm text-gray-300">
-              {timezone}
-            </div>
-            <div className="text-sm text-gray-400">
-              {currentTime || 'Loading time...'}
+    <footer className="bg-gang-secondary/80 border-t border-gang-accent/30 py-3 sm:py-4 px-3 sm:px-4">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 min-h-[4rem] sm:min-h-16">
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Tooltip content={`Switch to ${useServerTime ? 'Local' : 'Server'} Time`}>
+              <button
+                onClick={toggleTimeDisplay}
+                className="p-1.5 sm:p-2 rounded-md hover:bg-gang-accent/20 transition-colors text-gray-300 hover:text-white"
+                aria-label="Toggle time display"
+              >
+                {useServerTime ? (
+                  <Clock3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                ) : (
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
+              </button>
+            </Tooltip>
+            <div className="flex flex-col items-start sm:items-start text-center sm:text-left">
+              <div className="text-xs sm:text-sm text-gray-300 font-medium">
+                {timezone}
+              </div>
+              <div className="text-xs sm:text-sm text-gray-400">
+                {currentTime || 'Loading time...'}
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="text-sm text-gray-400">
+        <div className="text-xs sm:text-sm text-gray-400 text-center sm:text-right w-full sm:w-auto mt-1 sm:mt-0">
           © {new Date().getFullYear()} Low West Crew. All rights reserved.
         </div>
       </div>

@@ -10,10 +10,10 @@ import { formatServerTime } from '@/lib/dateUtils'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params
+    const { id } = params
     const { searchParams } = new URL(request.url)
     const hasKillsQuery = searchParams.get('hasKills') === 'true'
     
@@ -75,10 +75,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params
+    const { id } = params
     const session = await getServerSession(authOptions)
     
     if (!session?.user) {
@@ -104,14 +104,29 @@ export async function POST(
     }
 
     // Get user info including display name (nickname or username)
-    const { data: user } = await supabase
+    const discordId = (session.user as any).discordId
+    if (!discordId) {
+      console.error('No discordId found in session:', { session })
+      return NextResponse.json({ error: 'Discord ID not found in session' }, { status: 400 })
+    }
+
+    const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, username, discord_nick')
-      .eq('discord_id', (session.user as any).discordId)
+      .select('id, username, display_name')
+      .eq('discord_id', discordId)
       .single()
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    if (userError || !user) {
+      console.error('Error fetching user:', { 
+        discordId,
+        error: userError,
+        sessionUser: session.user 
+      })
+      return NextResponse.json({ 
+        error: 'User not found',
+        details: 'No user found with the provided Discord ID',
+        discordId
+      }, { status: 404 })
     }
 
     const body = await request.json()
@@ -151,6 +166,8 @@ export async function POST(
     const warHadKillsBefore = (existingKillCount || 0) > 0
     const encounterHasKills = friendsArray.length > 0 || playersArray.length > 0
 
+    const displayName = user.display_name || session.user.name || session.user.username || 'Unknown User';
+    
     const { data: log, error } = await supabase
       .from('war_logs')
       .insert({
@@ -163,7 +180,7 @@ export async function POST(
         notes: notes || null,
         evidence_url: evidence_url || null,
         submitted_by: user.id,
-        submitted_by_display_name: user.discord_nick || user.username,
+        submitted_by_display_name: displayName,
       })
       .select(`
         *,

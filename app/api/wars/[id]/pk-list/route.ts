@@ -11,6 +11,9 @@ interface DiscordUser {
   avatar: string | null
   nickname?: string | null
   display_name?: string | null
+  discord_id: string
+  avatar_url?: string
+  original_username?: string
 }
 
 // Update the PK map type to include the full Discord user object
@@ -63,11 +66,14 @@ export async function GET(
       kill_count: number
       last_killed_at: string
       discord_user: {
+        id: string
         username: string
         discord_id: string
         avatar: string | null
         discriminator: string
         current_username?: string  // Current Discord username (if different)
+        original_username: string  // Original username from logs
+        avatar_url?: string        // Full avatar URL (optional)
       } | null
     }>()
 
@@ -96,18 +102,26 @@ export async function GET(
               .maybeSingle()
               
             if (data) {
+              const avatarUrl = data.avatar 
+                ? `https://cdn.discordapp.com/avatars/${data.discord_id}/${data.avatar}${data.avatar.startsWith('a_') ? '.gif' : '.png'}?size=64`
+                : null;
+              
               // Check if we already have a different entry for this Discord user
               const existingEntry = Array.from(pkMap.entries())
                 .find(([_, e]) => e.discord_user?.discord_id === data.discord_id)
               
               discordUser = {
+                id: data.discord_id,
                 username: data.username,
                 discord_id: data.discord_id,
-                avatar: data.avatar,
+                avatar: existingEntry ? existingEntry[1].discord_user?.avatar || data.avatar : data.avatar,
                 discriminator: data.discriminator,
                 // If we found an existing entry for this Discord user, use its original username
-                // Otherwise, use the current username from the user's data
-                current_username: existingEntry ? existingEntry[1].discord_user?.username : data.username
+                current_username: existingEntry ? existingEntry[1].discord_user?.username : data.username,
+                // Store the original username for reference
+                original_username: cleanName,
+                // Always keep the latest avatar URL
+                avatar_url: avatarUrl || undefined
               }
               
               // If we found an existing entry with the same Discord ID but different name,
@@ -147,10 +161,26 @@ export async function GET(
           if (cleanName.length >= 2) { // Minimum length check to avoid too broad searches
             const { data } = await supabase
               .from('users')
-              .select('id, username, discord_id, avatar, discriminator')
-              .or(`username.ilike.%${cleanName}%,nickname.ilike.%${cleanName}%`)
+              .select('id, username, discord_id, avatar, discriminator, display_name')
+              .or(`username.ilike.%${cleanName}%,nickname.ilike.%${cleanName}%,display_name.ilike.%${cleanName}%`)
               .maybeSingle()
-            discordUser = data || null
+              
+            if (data) {
+              const avatarUrl = data.avatar 
+                ? `https://cdn.discordapp.com/avatars/${data.discord_id}/${data.avatar}${data.avatar.startsWith('a_') ? '.gif' : '.png'}?size=64`
+                : undefined;
+                
+              discordUser = {
+                id: data.discord_id,
+                username: data.username,
+                discord_id: data.discord_id,
+                avatar: data.avatar,
+                discriminator: data.discriminator,
+                current_username: data.username,
+                original_username: cleanName,
+                avatar_url: avatarUrl
+              };
+            }
           }
 
           pkMap.set(key, {
@@ -253,12 +283,13 @@ export async function GET(
       // Debug logging
       console.log(`Processing player: ${entry.player_name} (${entry.faction})`)
       
-      // Try to find the user by either username or display name (nickname)
+      // Try to find the user by either username, display name, or in the discord_user data
       let discordUser = Array.from(userMap.values()).find(user => {
         const usernameMatch = user.username?.toLowerCase() === playerName
         const displayNameMatch = user.display_name?.toLowerCase() === playerName
-        return usernameMatch || displayNameMatch
-      })
+        const discordUserMatch = entry.discord_user?.original_username?.toLowerCase() === playerName
+        return usernameMatch || displayNameMatch || discordUserMatch
+      }) || entry.discord_user // Fall back to the existing discord_user data
       
       // If not found, try partial matching
       if (!discordUser) {

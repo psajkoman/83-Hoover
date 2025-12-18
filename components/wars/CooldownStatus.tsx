@@ -22,34 +22,27 @@ export default function CooldownStatus({
     }
 
     const updateCooldown = () => {
-      try {
-        const lastTime = new Date(lastEncounterTime)
-        if (isNaN(lastTime.getTime())) {
-          console.error('Invalid lastEncounterTime:', lastEncounterTime)
-          setTimeLeft('Now')
-          return
-        }
-
-        const cooldownMs = cooldownHours * 60 * 60 * 1000
-        const cooldownEnd = new Date(lastTime.getTime() + cooldownMs)
-        const now = new Date()
-
-        if (now >= cooldownEnd) {
-          setTimeLeft('Now')
-        } else {
-          const diffMs = cooldownEnd.getTime() - now.getTime()
-          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-          const diffMinutes = Math.ceil((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-
-          if (diffHours > 0) {
-            setTimeLeft(`${diffHours} hour${diffHours !== 1 ? 's' : ''} and ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`)
-          } else {
-            setTimeLeft(`${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`)
-          }
-        }
-      } catch (error) {
-        console.error('Error in updateCooldown:', error)
+      if (!lastEncounterTime) {
         setTimeLeft('Now')
+        return
+      }
+      const lastEncounter = new Date(lastEncounterTime).getTime()
+      const now = new Date().getTime()
+      const cooldownEnd = lastEncounter + cooldownHours * 60 * 60 * 1000
+      const timeRemaining = cooldownEnd - now
+      if (timeRemaining <= 0) {
+        setTimeLeft('Now')
+      } else {
+        const hours = Math.floor(timeRemaining / (1000 * 60 * 60))
+        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60))
+        const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000)
+        
+        // Format as "Hh Mm Ss" or "Mm Ss" if hours is 0
+        if (hours > 0) {
+          setTimeLeft(`${hours} hours ${minutes} minutes ${seconds} seconds`)
+        } else {
+          setTimeLeft(`${minutes} minutes ${seconds} seconds`)
+        }
       }
     }
 
@@ -63,13 +56,13 @@ export default function CooldownStatus({
   }, [lastEncounterTime, cooldownHours])
 
   return (
-    <div className={`flex items-center gap-2 text-sm ${className}`}>
-      <span className="text-gray-400">Cooldown status:</span>
-      <span className="font-medium">
+    <div className={`flex items-center gap-2 text-sm sm:text-base ${className}`}>
+      <span className="text-white">Cooldown:</span>
+      <span className="text-gray-400 font-normal">
         {timeLeft === 'Now' ? (
-          <span className="text-gang-green">Can attack now</span>
+          <span>Expired. You can attack now.</span>
         ) : (
-          <span>Can attack in {timeLeft}</span>
+          <span>In effect for {timeLeft}</span>
         )}
       </span>
     </div>

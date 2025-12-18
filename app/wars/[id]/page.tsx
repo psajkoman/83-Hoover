@@ -858,47 +858,53 @@ const extractImageUrls = (text: string): string[] => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
       {/* Header */}
       <button
         onClick={() => router.push('/wars')}
-        className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+        className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 sm:mb-6 transition-colors text-sm sm:text-base"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Wars
       </button>
 
-      <Card variant="elevated" className="mb-8">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-4">
-              <Swords className="w-8 h-8 text-gang-highlight" />
-              <h1 className="text-3xl font-bold text-white">{war.enemy_faction}</h1>
-              <span className={`px-2 py-1 rounded text-xs font-semibold ${getWarLevelClasses(war.war_level)}`}>
-                {getWarLevelLabel(war.war_level)}
-              </span>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  war.status === 'ACTIVE'
-                    ? 'bg-gang-highlight/20 text-gang-highlight'
-                    : 'bg-gray-600/20 text-gray-400'
-                }`}
-              >
-                {war.status}
-              </span>
+      <Card variant="elevated" className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <Swords className="w-6 h-6 sm:w-8 sm:h-8 text-gang-highlight flex-shrink-0" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+                {war.enemy_faction}
+              </h1>
+              <div className="flex flex-wrap gap-2">
+                <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getWarLevelClasses(war.war_level)}`}>
+                  {getWarLevelLabel(war.war_level)}
+                </span>
+                <span
+                  className={`px-2 sm:px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                    war.status === 'ACTIVE'
+                      ? 'bg-gang-highlight/20 text-gang-highlight'
+                      : 'bg-gray-600/20 text-gray-400'
+                  }`}
+                >
+                  {war.status}
+                </span>
+              </div>
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-gray-400">
-                <Calendar className="w-4 h-4" />
-                <span>Started: {formatDateTime(war.started_at)}</span>
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-gray-400 text-sm sm:text-base">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                  <span><span className="text-white">Started:</span> <span className="text-gray-400">{formatDateTime(war.started_at)}</span></span>
+                </div>
                 {war.ended_at && (
-                  <span className="ml-4">
-                    Ended: {formatDateTime(war.ended_at)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 flex-shrink-0 opacity-0 sm:opacity-100" />
+                    <span>Ended: {formatDateTime(war.ended_at)}</span>
+                  </div>
                 )}
               </div>
               {war.status === 'ACTIVE' && (() => {
-                // Sort logs by date_time in descending order to get the most recent log
                 const sortedLogs = [...logs].sort((a, b) => 
                   new Date(b.date_time).getTime() - new Date(a.date_time).getTime()
                 );
@@ -906,7 +912,7 @@ const extractImageUrls = (text: string): string[] => {
                                
                 return (
                   <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-400" />
+                    <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <CooldownStatus 
                       lastEncounterTime={lastEncounterTime}
                       cooldownHours={war.regulations?.attacking_cooldown_hours || 6}
@@ -917,9 +923,12 @@ const extractImageUrls = (text: string): string[] => {
             </div>
           </div>
           {session && war.status === 'ACTIVE' && (
-            <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
+            <Button 
+              onClick={() => setShowAddModal(true)} 
+              className="flex items-center gap-2 w-full sm:w-auto justify-center mt-4 sm:mt-0"
+            >
               <Plus className="w-4 h-4" />
-              Add Log
+              <span>Add Log</span>
             </Button>
           )}
         </div>
@@ -927,7 +936,7 @@ const extractImageUrls = (text: string): string[] => {
 
 
       {/* War Regulations and PK List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
         {war.regulations && (
           <WarRegulations warType={war.war_type} regulations={war.regulations} />
         )}
@@ -941,7 +950,7 @@ const extractImageUrls = (text: string): string[] => {
 
       {/* War Logs */}
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white">Encounter Logs</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-white">Encounter Logs</h2>
       </div>
 
       {logs.length === 0 ? (
@@ -955,22 +964,24 @@ const extractImageUrls = (text: string): string[] => {
         <div className="space-y-4">
           {logs.map((log) => (
             <Card key={log.id} variant="elevated">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
                       log.log_type === 'ATTACK' 
                         ? 'bg-gang-highlight/20 text-gang-highlight border border-gang-highlight/30' 
                         : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                     }`}>
                       {log.log_type === 'ATTACK' ? '⚔️ ATTACK' : '🛡️ DEFENSE'}
                     </span>
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-white font-medium">
-                      {formatDateTime(log.date_time)}
-                    </span>
+                    <div className="flex items-center gap-2 text-sm sm:text-base">
+                      <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-white font-medium whitespace-nowrap">
+                        {formatDateTime(log.date_time)}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-xs sm:text-sm text-gray-400 break-words">
                     <span 
                       className="hover:text-white cursor-help transition-colors" 
                       title={`Created on ${formatDateTime(log.created_at)}`}
@@ -1040,56 +1051,25 @@ const extractImageUrls = (text: string): string[] => {
                 </div>
               </div>
               {/* Members Involved */}
-              <div className="relative">
+              <div className="mb-4">
                 <h4 className="text-sm font-semibold text-gray-400 mb-2">
                   Members Involved (Low West Crew)
                 </h4>
                 {editingLogId === log.id && editFormData ? (
-                  <>
-                    <input
-                      type="text"
-                      value={editFormData.members_involved}
-                      onChange={(e) => handleMembersChange(e.target.value)}
-                      onBlur={() => setTimeout(() => setShowMembersDropdown(false), 200)}
-                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm"
-                      placeholder="Start typing to see Discord suggestions..."
-                    />
-                    {showMembersDropdown && (() => {
-                      const words = editFormData.members_involved.split(',')
-                      const lastWord = words[words.length - 1].trim()
-                      const suggestions = getFilteredMembers(lastWord)
-                      return suggestions.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {suggestions.map((member: any) => {
-                            const serverName = member.nickname || member.username
-                            const showUsername = member.nickname && member.username !== member.nickname
-                            return (
-                              <button
-                                key={member.id}
-                                type="button"
-                                onClick={() => insertSuggestion('members', serverName)}
-                                className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gang-highlight">@</span>
-                                  <span className="font-medium">{serverName}</span>
-                                  {showUsername && (
-                                    <span className="text-xs text-gray-400">({member.username})</span>
-                                  )}
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )
-                    })()}
-                  </>
+                  <input
+                    type="text"
+                    value={editFormData.members_involved}
+                    onChange={(e) => handleMembersChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setShowMembersDropdown(false), 200)}
+                    className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm focus:ring-2 focus:ring-gang-highlight focus:border-transparent"
+                    placeholder=""
+                  />
                 ) : (
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto py-1 -mx-1 px-1">
                     {log.members_involved?.map((member, idx) => (
                       <span
                         key={`member-${idx}`}
-                        className="px-3 py-1.5 bg-blue-500/20 rounded-full text-sm text-blue-300"
+                        className="px-2 sm:px-3 py-1 bg-blue-500/20 rounded-full text-xs sm:text-sm text-blue-300 whitespace-nowrap"
                       >
                         {member}
                       </span>
@@ -1097,57 +1077,26 @@ const extractImageUrls = (text: string): string[] => {
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="relative">
                   <h4 className="text-sm font-semibold text-gray-400 mb-2">
                     Players Killed (Low West Crew)
                   </h4>
                   {editingLogId === log.id && editFormData ? (
-                    <>
-                      <input
-                        type="text"
-                        value={editFormData.friends_involved}
-                        onChange={(e) => handleFriendsChange(e.target.value)}
-                        onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
-                        className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm"
-                        placeholder="Start typing to see Discord suggestions..."
-                      />
-                      {showFriendsDropdown && (() => {
-                        const words = editFormData.friends_involved.split(',')
-                        const lastWord = words[words.length - 1].trim()
-                        const suggestions = getFilteredMembers(lastWord)
-                        return suggestions.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {suggestions.map((member: any) => {
-                              const serverName = member.nickname || member.username
-                              const showUsername = member.nickname && member.username !== member.nickname
-                              return (
-                                <button
-                                  key={member.id}
-                                  type="button"
-                                  onClick={() => insertSuggestion('friends', serverName)}
-                                  className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gang-highlight">@</span>
-                                    <span className="font-medium">{serverName}</span>
-                                    {showUsername && (
-                                      <span className="text-xs text-gray-400">({member.username})</span>
-                                    )}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )
-                      })()}
-                    </>
+                    <input
+                      type="text"
+                      value={editFormData.friends_involved}
+                      onChange={(e) => handleFriendsChange(e.target.value)}
+                      onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm focus:ring-2 focus:ring-gang-highlight focus:border-transparent"
+                      placeholder=""
+                    />
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {log.friends_involved.map((member, idx) => (
                         <span
                           key={idx}
-                          className="px-3 py-1.5 bg-gang-accent/30 rounded-full text-sm text-white"
+                          className="px-2 sm:px-3 py-1 bg-gang-accent/30 rounded-full text-xs sm:text-sm text-white whitespace-nowrap"
                         >
                           {member}
                         </span>
@@ -1160,51 +1109,20 @@ const extractImageUrls = (text: string): string[] => {
                     Players Killed (Enemy)
                   </h4>
                   {editingLogId === log.id && editFormData ? (
-                    <>
-                      <input
-                        type="text"
-                        value={editFormData.players_killed}
-                        onChange={(e) => handlePlayersChange(e.target.value)}
-                        onBlur={() => setTimeout(() => setShowPlayersDropdown(false), 200)}
-                        className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm"
-                        placeholder="Start typing to see Discord suggestions..."
-                      />
-                      {showPlayersDropdown && (() => {
-                        const words = editFormData.players_killed.split(',')
-                        const lastWord = words[words.length - 1].trim()
-                        const suggestions = getFilteredMembers(lastWord)
-                        return suggestions.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {suggestions.map((member: any) => {
-                              const serverName = member.nickname || member.username
-                              const showUsername = member.nickname && member.username !== member.nickname
-                              return (
-                                <button
-                                  key={member.id}
-                                  type="button"
-                                  onClick={() => insertSuggestion('players', serverName)}
-                                  className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gang-highlight">@</span>
-                                    <span className="font-medium">{serverName}</span>
-                                    {showUsername && (
-                                      <span className="text-xs text-gray-400">({member.username})</span>
-                                    )}
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )
-                      })()}
-                    </>
+                    <input
+                      type="text"
+                      value={editFormData.players_killed}
+                      onChange={(e) => handlePlayersChange(e.target.value)}
+                      onBlur={() => setTimeout(() => setShowPlayersDropdown(false), 200)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm focus:ring-2 focus:ring-gang-highlight focus:border-transparent"
+                      placeholder=""
+                    />
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {log.players_killed.map((player, idx) => (
                         <span
                           key={idx}
-                          className="px-3 py-1.5 bg-gang-highlight/20 rounded-full text-sm text-gang-highlight"
+                          className="px-2 sm:px-3 py-1 bg-red-500/20 rounded-full text-xs sm:text-sm text-red-300 whitespace-nowrap"
                         >
                           {player}
                         </span>
@@ -1215,41 +1133,40 @@ const extractImageUrls = (text: string): string[] => {
               </div>
 
               {(editingLogId === log.id || log.notes) && (
-                <div className="mb-4">
+                <div className="mt-4">
                   <h4 className="text-sm font-semibold text-gray-400 mb-2">Notes</h4>
                   {editingLogId === log.id && editFormData ? (
                     <textarea
-                      value={editFormData.notes}
-                      onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm min-h-[80px]"
-                      placeholder="Additional details..."
+                      value={editFormData.notes || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, notes: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm min-h-[100px] focus:ring-2 focus:ring-gang-highlight focus:border-transparent"
+                      placeholder=""
                     />
                   ) : (
-                    <div className="space-y-2">
-                      <p className="text-white text-sm whitespace-pre-line">{log.notes?.replace(/https?:\/\/[^\s]+(\.[^\s]+)+/g, '')}</p>
-                      {log.notes && extractImageUrls(log.notes).map((url, idx) => (
-                        <div key={idx} className="mt-2">
-                          {renderMedia(url, log.id, 'max-h-40')}
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-sm text-gray-300 whitespace-pre-line break-words">
+                      {log.notes || 'No notes provided.'}
+                    </p>
                   )}
                 </div>
               )}
 
               {(editingLogId === log.id || log.evidence_url) && (
-                <div>
+                <div className="mt-4">
                   <h4 className="text-sm font-semibold text-gray-400 mb-2 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4" />
                     Evidence
                   </h4>
                   {editingLogId === log.id && editFormData ? (
                     <input
-                      type="url"
-                      value={editFormData.evidence_url}
-                      onChange={(e) => setEditFormData({ ...editFormData, evidence_url: e.target.value })}
-                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm"
-                      placeholder="https://..."
+                      type="text"
+                      value={editFormData.evidence_url || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, evidence_url: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded text-white text-sm focus:ring-2 focus:ring-gang-highlight focus:border-transparent"
+                      placeholder="Paste image or video URL"
                     />
                   ) : log.evidence_url ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
