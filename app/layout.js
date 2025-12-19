@@ -5,6 +5,7 @@ import ActiveWarBanner from "@/components/layout/ActiveWarBanner";
 import Providers from "./providers";
 import Background from "@/components/Background";
 import Footer from "@/components/layout/Footer";
+import StickyTimezoneSelector from "@/components/layout/StickyTimezoneSelector";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 
 const inter = Inter({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
             <div className="flex flex-col min-h-screen">
               <main className="flex-grow">
                 {children}
+                <StickyTimezoneSelector />
               </main>
               <Footer />
             </div>

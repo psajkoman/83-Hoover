@@ -228,7 +228,7 @@ export function PlayerKillList({
       logCounts,
       topKills,
       topSubmitters,
-      winner: friendKills > enemyKills ? 'FRIEND' : enemyKills > friendKills ? 'ENEMY' : 'DRAW',
+      winner: friendKills < enemyKills ? 'FRIEND' : enemyKills < friendKills ? 'ENEMY' : 'DRAW',
       friendKills,
       enemyKills
     })
@@ -242,7 +242,7 @@ export function PlayerKillList({
   return (
     <div className="space-y-4 sm:space-y-6">
       <Card className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 px-3 sm:px-4 pt-3 sm:pt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-white">
             {isWarEnded ? 'Final Scoreboard' : 'Player Kill List'}
           </h3>
@@ -263,7 +263,7 @@ export function PlayerKillList({
             <div className="inline-block w-6 h-6 border-4 border-gang-highlight border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 px-3 sm:px-4 pb-3 sm:pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* Enemy Faction */}
             <div>
               <div className="flex items-center justify-between mb-2 px-1">

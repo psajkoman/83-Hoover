@@ -165,24 +165,24 @@ export default function AnnouncementsSection() {
   }
 
   return (
-    <Card variant="elevated">
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Announcements</h2>
-          <p className="text-gray-400">Important updates from leadership.</p>
+    <Card variant="elevated" className="overflow-hidden">
+      <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-3 mb-4 px-3 sm:px-4">
+        <div className="mb-2 xs:mb-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Announcements</h2>
+          <p className="text-sm sm:text-base text-gray-400">Important updates from leadership.</p>
         </div>
 
         {canManage ? (
-          <Button size="sm" onClick={openCreate}>
+          <Button size="sm" onClick={openCreate} className="w-full xs:w-auto">
             New Announcement
           </Button>
         ) : null}
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8">
+        <div className="text-center py-8 px-2">
           <div className="inline-block w-8 h-8 border-4 border-gang-highlight border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-400 mt-4">Loading announcements...</p>
+          <p className="text-sm sm:text-base text-gray-400 mt-4">Loading announcements...</p>
         </div>
       ) : error ? (
         <div className="text-center py-8">
@@ -196,28 +196,28 @@ export default function AnnouncementsSection() {
           <p className="text-gray-400">No announcements yet.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 px-1 sm:px-0">
           {announcements.map((a) => (
-            <div key={a.id} className="rounded-lg border border-gang-accent/30 bg-gang-primary/30 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-white font-semibold truncate">
+            <div key={a.id} className="rounded-lg border border-gang-accent/30 bg-gang-primary/30 p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col xs:flex-row xs:items-center gap-1 xs:gap-2">
+                    <h3 className="text-white font-semibold truncate text-sm sm:text-base">
                       {a.title || 'Announcement'}
                     </h3>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-400">
                       {formatRelativeTime(a.created_at)}
                     </span>
                   </div>
-                  <p className="text-gray-300 whitespace-pre-wrap mt-2">{a.content}</p>
+                  <p className="text-sm sm:text-base text-gray-300 whitespace-pre-wrap mt-2">{a.content}</p>
                 </div>
 
                 {canManage ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(a)}>
+                  <div className="flex items-center gap-2 justify-end sm:justify-start mt-2 sm:mt-0">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(a)} className="px-2 sm:px-3 text-xs sm:text-sm">
                       Edit
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => submitDelete(a.id)}>
+                    <Button size="sm" variant="danger" onClick={() => submitDelete(a.id)} className="px-2 sm:px-3 text-xs sm:text-sm">
                       Delete
                     </Button>
                   </div>
@@ -234,28 +234,37 @@ export default function AnnouncementsSection() {
         title="New Announcement"
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 px-1 sm:px-0">
           <Input
             label="Title (optional)"
             value={draftTitle}
             onChange={(e) => setDraftTitle(e.target.value)}
             placeholder="Title..."
+            className="text-sm sm:text-base"
           />
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Content</label>
             <textarea
               value={draftContent}
               onChange={(e) => setDraftContent(e.target.value)}
-              className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gang-highlight resize-none"
-              rows={6}
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gang-highlight resize-none"
+              rows={5}
               placeholder="Write the announcement..."
             />
           </div>
-          <div className="flex gap-3 pt-2">
-            <Button onClick={submitCreate} disabled={!draftContent.trim()} className="flex-1">
+          <div className="flex flex-col xs:flex-row gap-2 pt-2">
+            <Button 
+              onClick={submitCreate} 
+              disabled={!draftContent.trim()} 
+              className="flex-1 px-2 sm:px-4 py-1.5 text-sm sm:text-base"
+            >
               Publish
             </Button>
-            <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>
+            <Button 
+              variant="ghost" 
+              onClick={() => setIsCreateOpen(false)}
+              className="px-2 sm:px-4 py-1.5 text-sm sm:text-base"
+            >
               Cancel
             </Button>
           </div>
@@ -271,25 +280,30 @@ export default function AnnouncementsSection() {
         title="Edit Announcement"
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 px-1 sm:px-0">
           <Input
             label="Title (optional)"
             value={draftTitle}
             onChange={(e) => setDraftTitle(e.target.value)}
             placeholder="Title..."
+            className="text-sm sm:text-base"
           />
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Content</label>
             <textarea
               value={draftContent}
               onChange={(e) => setDraftContent(e.target.value)}
-              className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gang-highlight resize-none"
-              rows={6}
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gang-highlight resize-none"
+              rows={5}
               placeholder="Update the announcement..."
             />
           </div>
-          <div className="flex gap-3 pt-2">
-            <Button onClick={submitEdit} disabled={!draftContent.trim()} className="flex-1">
+          <div className="flex flex-col xs:flex-row gap-2 pt-2">
+            <Button 
+              onClick={submitEdit} 
+              disabled={!draftContent.trim()} 
+              className="flex-1 px-2 sm:px-4 py-1.5 text-sm sm:text-base"
+            >
               Save
             </Button>
             <Button
@@ -298,6 +312,7 @@ export default function AnnouncementsSection() {
                 setIsEditOpen(false)
                 setEditId(null)
               }}
+              className="px-2 sm:px-4 py-1.5 text-sm sm:text-base"
             >
               Cancel
             </Button>

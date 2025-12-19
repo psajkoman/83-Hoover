@@ -498,7 +498,6 @@ export function buildWarWebhookPayload(war: CurrentWarEmbedInput): { webhookUrl:
           value: [
             `**${war.enemy_faction}**`,
             `- Next attack: ${enemyNextAttack}`,
-            '',
             '**Low West Crew**',
             `- Next attack: ${lwcNextAttack}`
           ].join('\n'),

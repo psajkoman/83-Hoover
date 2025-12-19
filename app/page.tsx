@@ -146,7 +146,7 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         <div className="text-center py-12">
           <div className="inline-block w-10 h-10 border-4 border-gang-highlight border-t-transparent rounded-full animate-spin"></div>
           <p className="text-gray-400 mt-4">Loading faction statistics...</p>
@@ -157,7 +157,7 @@ export default function HomePage() {
 
   if (!session) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         <div className="mb-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
             <span className="text-gang-highlight">Low West Crew</span> Faction Hub
@@ -259,7 +259,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
       {/* Hero Section */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
@@ -275,7 +275,7 @@ export default function HomePage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {/* Member Count */}
         <Card variant="elevated">
           <div className="flex items-center gap-4 p-4">
@@ -323,13 +323,13 @@ export default function HomePage() {
       </div>
 
       {/* Activity Log Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
         <div className="lg:col-span-2">
           <Card variant="elevated">
             <h2 className="text-2xl font-bold text-white mb-4">Activity Log</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {stats?.activityLog?.map((log, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 hover:bg-gray-800/30 rounded-lg transition-colors">
+                <div key={index} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 hover:bg-gray-800/30 rounded-lg transition-colors">
                   <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
                     log.type === 'war' ? 'bg-red-500' :
                     log.type === 'log' ? 'bg-blue-500' :
@@ -358,17 +358,17 @@ export default function HomePage() {
         <div>
           <Card variant="elevated">
             <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              <Link href="/turf" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Link href="/turf" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white text-sm sm:text-base">
                 🗺️ View Turf Map
               </Link>
-              <Link href="/wars" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
+              <Link href="/wars" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white text-sm sm:text-base">
                 ⚔️ Active Wars
               </Link>
-              <Link href="/admin" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
+              <Link href="/admin" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white text-sm sm:text-base">
                 👑 Member Management
               </Link>
-              <Link href="/wars/" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white">
+              <Link href="/wars/" className="block px-4 py-3 rounded-lg bg-gang-secondary hover:bg-gang-highlight transition-colors text-white text-sm sm:text-base">
                 View Wars History
               </Link>
             </div>

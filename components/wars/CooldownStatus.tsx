@@ -14,6 +14,21 @@ export default function CooldownStatus({
   className = '' 
 }: CooldownStatusProps) {
   const [timeLeft, setTimeLeft] = useState<string>('calculating...')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    // Check if mobile on client side
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 640) // Tailwind's 'sm' breakpoint
+    }
+    
+    // Set initial value
+    checkIfMobile()
+    
+    // Add event listener
+    window.addEventListener('resize', checkIfMobile)
+    return () => window.removeEventListener('resize', checkIfMobile)
+  }, [])
 
   useEffect(() => {
     if (!lastEncounterTime) {
@@ -30,6 +45,7 @@ export default function CooldownStatus({
       const now = new Date().getTime()
       const cooldownEnd = lastEncounter + cooldownHours * 60 * 60 * 1000
       const timeRemaining = cooldownEnd - now
+      
       if (timeRemaining <= 0) {
         setTimeLeft('Now')
       } else {
@@ -37,11 +53,20 @@ export default function CooldownStatus({
         const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60))
         const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000)
         
-        // Format as "Hh Mm Ss" or "Mm Ss" if hours is 0
-        if (hours > 0) {
-          setTimeLeft(`${hours} hours ${minutes} minutes ${seconds} seconds`)
+        if (isMobile) {
+          // More compact format for mobile
+          if (hours > 0) {
+            setTimeLeft(`${hours}h ${minutes}m`)
+          } else {
+            setTimeLeft(`${minutes}m ${seconds}s`)
+          }
         } else {
-          setTimeLeft(`${minutes} minutes ${seconds} seconds`)
+          // Original format for desktop
+          if (hours > 0) {
+            setTimeLeft(`${hours} hours ${minutes} minutes ${seconds} seconds`)
+          } else {
+            setTimeLeft(`${minutes} minutes ${seconds} seconds`)
+          }
         }
       }
     }
@@ -53,16 +78,16 @@ export default function CooldownStatus({
     const interval = setInterval(updateCooldown, 1000)
 
     return () => clearInterval(interval)
-  }, [lastEncounterTime, cooldownHours])
+  }, [lastEncounterTime, cooldownHours, isMobile])
 
   return (
     <div className={`flex items-center gap-2 text-sm sm:text-base ${className}`}>
       <span className="text-white">Cooldown:</span>
       <span className="text-gray-400 font-normal">
         {timeLeft === 'Now' ? (
-          <span>Expired. You can attack now.</span>
+          <span>{isMobile ? 'Ready' : 'Expired. You can attack now.'}</span>
         ) : (
-          <span>In effect for {timeLeft}</span>
+          <span>{isMobile ? timeLeft : `In effect for ${timeLeft}`}</span>
         )}
       </span>
     </div>
