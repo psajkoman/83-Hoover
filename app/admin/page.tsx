@@ -2,6 +2,9 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { Database } from '@/types/supabase'
+
+type User = Database['public']['Tables']['users']['Row']
+type LoginHistory = Database['public']['Tables']['login_history']['Row']
 import Card from '@/components/ui/Card'
 import { Users, FileText, MapPin, Settings } from 'lucide-react'
 import { getServerSession } from 'next-auth'
@@ -22,14 +25,20 @@ export default async function AdminPage() {
     .from('users')
     .select('*')
     .eq('discord_id', (session.user as any).discordId)
-    .single()
+    .single() as { data: User | null }
 
-  if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)) {
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'LEADER' && user.role !== 'MODERATOR')) {
     redirect('/')
   }
 
-  // Fetch admin stats
-  const [usersResult, postsResult, pendingResult, recentUsersResult] = await Promise.all([
+  // Fetch admin stats and login history
+  const [
+    usersResult, 
+    postsResult, 
+    pendingResult, 
+    recentUsersResult, 
+    loginHistoryResult
+  ] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }),
     supabase.from('posts').select('id', { count: 'exact', head: true }),
     supabase.from('posts').select('id', { count: 'exact', head: true }).eq('is_pinned', false),
@@ -38,12 +47,56 @@ export default async function AdminPage() {
       .select('id, username, role, joined_at')
       .order('joined_at', { ascending: false })
       .limit(10),
+    supabase
+      .from('login_history')
+      .select('*')
+      .order('login_time', { ascending: false })
+      .limit(10)
   ])
 
   const totalUsers = usersResult.count || 0
   const totalPosts = postsResult.count || 0
   const pendingPosts = pendingResult.count || 0
   const recentUsers = recentUsersResult.data || []
+    // Update the type to include the user relation
+  type LoginHistory = Database['public']['Tables']['login_history']['Row'];
+  type User = Database['public']['Tables']['users']['Row'];
+  type UserDisplayNames = Record<string, string>;
+
+  // First, let's modify the query to include error handling
+  const { data: loginHistoryData, error: loginHistoryError } = await supabase
+    .from('login_history')
+    .select('*')
+    .order('login_time', { ascending: false })
+    .limit(10) as { data: LoginHistory[] | null; error: any };
+  console.log('Login history:', loginHistoryData);
+
+  const discordIds = loginHistoryData?.map(login => login.discord_id).filter(Boolean) || [];
+  let usersMap: UserDisplayNames = {};
+  if (discordIds.length > 0) {
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('discord_id, display_name')
+      .in('discord_id', discordIds) as { data: Array<{ discord_id: string; display_name: string }> | null };
+    if (usersData) {
+      usersMap = usersData.reduce((acc: UserDisplayNames, user) => {
+        if (user.discord_id) {
+          acc[user.discord_id] = user.display_name;
+        }
+        return acc;
+      }, {});
+    }
+  }
+
+  const loginHistory = (loginHistoryData || []).map(login => ({
+    ...login,
+    displayName: login.discord_id ? (usersMap[login.discord_id] || login.username || 'Unknown User') : 'Unknown User'
+  }));
+  console.log('Processed login history with display names:', loginHistory);
+  
+  // Debug logging
+  console.log('Login history query result:', loginHistoryResult)
+  console.log('Processed login history:', loginHistory)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -108,6 +161,28 @@ export default async function AdminPage() {
             <button className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors text-left">
               ⚙️ Configure Webhooks
             </button>
+          </div>
+        </Card>
+        
+        {/* Login History */}
+        <Card variant="elevated" className="h-full">
+          <h3 className="font-bold text-xl text-white mb-4">Recent Logins</h3>
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {loginHistory.map((login) => (
+              <div key={`${login.discord_id}-${login.login_time}`} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                <div>
+                  <p className="font-medium text-white">
+                    {login.displayName}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    {new Date(login.login_time).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {loginHistory.length === 0 && (
+              <p className="text-gray-400 text-center py-4">No login history found</p>
+            )}
           </div>
         </Card>
       </div>
