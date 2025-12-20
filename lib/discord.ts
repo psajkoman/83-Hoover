@@ -22,6 +22,7 @@ type DiscordWebhookSendResult = {
   messageId?: string;
   channelId?: string;
   raw?: any;
+  error?: string;
 };
 
 type WarRegulations = {
@@ -128,7 +129,10 @@ export async function resolveDiscordAuthor(
 
 export async function sendToDiscordWebhook(webhookUrl: string, payload: DiscordWebhookPayload): Promise<DiscordWebhookSendResult> {
   try {
-    console.log('Sending to Discord webhook:', webhookUrl, JSON.stringify(payload, null, 2));
+    console.log('Sending to Discord webhook:', {
+      webhookUrl: webhookUrl.replace(/\/([^/]+)$/, '/***'),
+      payload: JSON.stringify(payload, null, 2)
+    });
 
     const response = await fetch(withWait(webhookUrl), {
       method: 'POST',
@@ -141,11 +145,12 @@ export async function sendToDiscordWebhook(webhookUrl: string, payload: DiscordW
     const responseText = await response.text();
     console.log('Discord webhook response status:', response.status);
     console.log('Discord webhook response:', responseText);
+    
     if (!response.ok) {
       throw new Error(`Discord API error: ${response.status} - ${responseText}`);
     }
 
-    let raw: any = undefined;
+    let raw: any;
     try {
       raw = responseText ? JSON.parse(responseText) : undefined;
     } catch {
@@ -158,9 +163,16 @@ export async function sendToDiscordWebhook(webhookUrl: string, payload: DiscordW
       channelId: raw?.channel_id,
       raw,
     };
-  } catch (error) {
-    console.error('Failed to send Discord webhook:', error);
-    return { ok: false };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in sendToDiscordWebhook:', {
+      error: errorMessage,
+      payload: JSON.stringify(payload, null, 2)
+    });
+    return { 
+      ok: false,
+      error: errorMessage
+    };
   }
 }
 
@@ -172,9 +184,11 @@ export function buildEncounterWebhookPayload(
     fields?: Array<{ name: string; value: string; inline?: boolean }>;
     timestamp?: Date;
     author?: {
+      id?: string;
       username: string;
       displayName?: string;
       avatar?: string;
+      discord_display_name?: string;
     };
     notes?: string;
     evidence_url?: string;
@@ -260,7 +274,11 @@ const payload: DiscordWebhookPayload = {
     image: firstEvidenceIsImage ? { url: firstEvidenceUrl } : undefined,
     footer: {
       text: `Posted by ${logData.author?.displayName || logData.author?.username || 'System'}\u2002•\u2002${formatTime(logTime)}`,
-      icon_url: logData.author?.avatar || undefined
+      icon_url: logData.author?.avatar
+        ? logData.author.avatar.startsWith('http')
+          ? logData.author.avatar // Full URL provided
+          : `https://cdn.discordapp.com/avatars/${logData.author.id || '0'}/${logData.author.avatar}${logData.author.avatar?.startsWith('a_') ? '.gif' : '.png'}`
+        : undefined
     }
   }]
 };
@@ -290,12 +308,36 @@ export async function sendEncounterLogToDiscord(
   }
 ): Promise<DiscordWebhookSendResult> {
   try {
-    const { webhookUrl, payload } = buildEncounterWebhookPayload(type, logData);
+    console.log(`[DEBUG] Sending ${type} log to Discord`);
+    
+    // Get the appropriate webhook URL based on log type
+    const webhookUrl = type === 'ATTACK' 
+      ? process.env.DISCORD_ATTACK_LOGS_WEBHOOK 
+      : process.env.DISCORD_DEFENSE_LOGS_WEBHOOK;
+    
+    if (!webhookUrl) {
+      const errorMsg = `No webhook URL configured for ${type} logs`;
+      console.error(`[ERROR] ${errorMsg}`);
+      return { ok: false, error: errorMsg };
+    }
+    
+    console.log(`[DEBUG] Using webhook URL for ${type}:`, webhookUrl);
+    
+    const { payload } = buildEncounterWebhookPayload(type, logData);
     const res = await sendToDiscordWebhook(webhookUrl, payload);
+    
+    if (!res.ok) {
+      console.error(`[ERROR] Failed to send ${type} log to Discord:`, res.error || 'Unknown error');
+    } else {
+      console.log(`[SUCCESS] Successfully sent ${type} log to Discord`);
+    }
+    
     return res;
   } catch (error) {
-    console.error(`Error in sendEncounterLogToDiscord (${type}):`, error);
-    return { ok: false };
+    const errorMsg = `Error in sendEncounterLogToDiscord (${type}): ${error instanceof Error ? error.message : String(error)}`;
+    console.error(errorMsg);
+    console.error('Error details:', error);
+    return { ok: false, error: errorMsg };
   }
 }
 

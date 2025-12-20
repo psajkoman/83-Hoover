@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Swords } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { useRouter } from 'next/navigation'
 
 interface StartWarModalProps {
   onClose: () => void
@@ -12,10 +13,13 @@ interface StartWarModalProps {
 }
 
 export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: StartWarModalProps) {
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [warType, setWarType] = useState<'UNCONTROLLED' | 'CONTROLLED'>('UNCONTROLLED')
   const [warLevel, setWarLevel] = useState<'NON_LETHAL' | 'LETHAL'>('NON_LETHAL')
   const [enemyFaction, setEnemyFaction] = useState('')
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [newWarId, setNewWarId] = useState<string | null>(null)
   
   // Controlled war regulations
   const [attackingCooldown, setAttackingCooldown] = useState(6)
@@ -60,7 +64,15 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
       })
 
       if (res.ok) {
+        const data = await res.json()
         onSuccess()
+        setNewWarId(data.war.id)
+        setShowSuccess(true)
+        
+        // Wait a moment to show the success message, then redirect to the war page
+        setTimeout(() => {
+          router.push(`/wars/${data.war.slug || data.war.id}`)
+        }, 1500)
       } else {
         const error = await res.json()
         alert(error.error || 'Failed to start war')
@@ -274,6 +286,26 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
             </Button>
           </div>
         </form>
+
+        {showSuccess && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-gang-secondary p-6 rounded-lg max-w-sm w-full text-center">
+              <div className="text-gang-green text-5xl mb-4">✓</div>
+              <h3 className="text-xl font-bold text-white mb-2">War Started!</h3>
+              <p className="text-gray-300 mb-6">Redirecting to war page...</p>
+              {newWarId && (
+                <p className="text-sm text-gray-400">
+                  <a 
+                    href={`/wars/${newWarId}/log`} 
+                    className="text-gang-highlight hover:underline"
+                  >
+                    Click here
+                  </a> if you're not redirected automatically.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -115,21 +115,9 @@ export default function WarsPage() {
       const activeData = await activeRes.json();
       const endedData = await endedRes.json();
 
-      // Debug logging
-      console.log('Active wars raw data:', JSON.stringify(activeData.wars, null, 2));
-      console.log('Ended wars raw data:', JSON.stringify(endedData.wars, null, 2));
-
       // Sort the wars
       const sortedActiveWars = sortWars(activeData.wars || []);
       const sortedEndedWars = sortWars(endedData.wars || []);
-
-      // Debug logging for sorted results
-      console.log('Sorted active wars:', sortedActiveWars.map((w: War) => ({
-        enemy_faction: w.enemy_faction,
-        hasLogs: !!w.war_logs?.length,
-        latestLog: w.war_logs?.[0]?.date_time,
-        isHot: isWarHotSimple(w)
-      })));
 
       setActiveWars(sortedActiveWars);
       setEndedWars(sortedEndedWars);
@@ -141,7 +129,6 @@ export default function WarsPage() {
   };
 
   const getLogCount = (war: War) => {
-    console.log('WAR ', war)
     return war.war_logs.length || 0
   }
 

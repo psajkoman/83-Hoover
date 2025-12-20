@@ -5,7 +5,8 @@ import { Database } from '@/types/supabase'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { isUuid } from '@/lib/warSlug'
-import { deleteWarFromDiscord, updateWarInDiscord } from '@/lib/discord'
+import { deleteWarFromDiscord, updateWarInDiscord, sendWarToDiscord } from '@/lib/discord'
+import { sendPendingLogsToDiscord } from '@/lib/discord/pendingLogs'
 
 export async function GET(
   request: NextRequest,
@@ -50,6 +51,88 @@ export async function GET(
     console.error('Error fetching war:', error)
     return NextResponse.json(
       { error: 'Failed to fetch war' },
+      { status: 500 }
+    )
+  }
+}
+
+// Handle DELETE method for pending wars
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const cookieStore = await cookies()
+    const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
+
+    let warId = id
+    if (!isUuid(id)) {
+      const { data: warBySlug, error: warBySlugError } = await supabase
+        .from('faction_wars')
+        .select('id')
+        .eq('slug', id)
+        .single()
+
+      if (warBySlugError) throw warBySlugError
+      if (!warBySlug) {
+        return NextResponse.json({ error: 'War not found' }, { status: 404 })
+      }
+      warId = warBySlug.id
+    }
+
+    // Check if user is admin
+    const { data: user } = await supabase
+      .from('users')
+      .select('role')
+      .eq('discord_id', (session.user as any).discordId)
+      .single()
+
+    // Handle case where user.role might be null
+    const userRole = user?.role || 'MEMBER'
+    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // First get the war to check if it's pending
+    const { data: war, error: fetchError } = await supabase
+      .from('faction_wars')
+      .select('status')
+      .eq('id', warId)
+      .single()
+
+    if (fetchError) throw fetchError
+    if (!war) {
+      return NextResponse.json({ error: 'War not found' }, { status: 404 })
+    }
+
+    // Only allow deleting pending wars
+    if (war.status !== 'PENDING') {
+      return NextResponse.json(
+        { error: 'Only pending wars can be deleted' },
+        { status: 400 }
+      )
+    }
+
+    // Delete the war
+    const { error: deleteError } = await supabase
+      .from('faction_wars')
+      .delete()
+      .eq('id', warId)
+
+    if (deleteError) throw deleteError
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting war:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete war' },
       { status: 500 }
     )
   }
@@ -104,7 +187,25 @@ export async function PATCH(
     const updateData: any = {}
     if (status) {
       updateData.status = status
-      if (status === 'ENDED') {
+      if (request.method === 'DELETE') {
+        // Delete the war
+        const { error: deleteError } = await supabase
+          .from('faction_wars')
+          .delete()
+          .eq('id', warId)
+
+        if (deleteError) {
+          console.error('Error deleting war:', deleteError)
+          return NextResponse.json(
+            { error: 'Failed to delete war' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({ success: true })
+      }
+
+      if (request.method === 'PATCH') {
         updateData.ended_at = new Date().toISOString()
       }
     }
@@ -162,8 +263,57 @@ export async function PATCH(
 
     if (war) {
       const messageId = (war as any).discord_message_id as string | null
+      const siteUrl = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || ''
 
-      if (status === 'ENDED' && messageId) {
+      // Handle war approval (status changed to ACTIVE)
+      if (status === 'ACTIVE' && !messageId) {
+        try {
+          // First update the war status
+          const { data: updatedWar, error: updateError } = await supabase
+            .from('faction_wars')
+            .update({ 
+              status: 'ACTIVE',
+              is_approved: true,
+              started_at: new Date().toISOString()
+            })
+            .eq('id', warId)
+            .select('*')
+            .single();
+          
+          if (updateError) throw updateError;
+          // Then send the war announcement
+          const discordResult = await sendWarToDiscord({
+            ...updatedWar,
+            scoreboard: { kills: 0, deaths: 0 },
+            siteUrl,
+            lastDefense: null
+          });
+          if (discordResult.ok) {
+            // Update war with Discord message ID
+            await supabase
+              .from('faction_wars')
+              .update({ 
+                discord_message_id: discordResult.messageId,
+                discord_channel_id: discordResult.channelId
+              })
+              .eq('id', warId);
+            // Small delay to ensure war is fully updated
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Now send pending logs with the updated war data
+            try {
+              await sendPendingLogsToDiscord(warId, siteUrl);
+            } catch (logError) {
+              console.error('Error sending pending logs to Discord:', logError);
+            }
+          }
+        } catch (error) {
+          console.error('Error in war approval process:', error);
+          throw error;
+        }
+      }
+      // Handle war ending
+      else if (status === 'ENDED' && messageId) {
         try {
           await deleteWarFromDiscord(messageId)
         } catch (e) {

@@ -36,8 +36,7 @@ export default async function AdminPage() {
     usersResult, 
     postsResult, 
     pendingResult, 
-    recentUsersResult, 
-    loginHistoryResult
+    recentUsersResult
   ] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }),
     supabase.from('posts').select('id', { count: 'exact', head: true }),
@@ -46,11 +45,6 @@ export default async function AdminPage() {
       .from('users')
       .select('id, username, role, joined_at')
       .order('joined_at', { ascending: false })
-      .limit(10),
-    supabase
-      .from('login_history')
-      .select('*')
-      .order('login_time', { ascending: false })
       .limit(10)
   ])
 
@@ -58,18 +52,22 @@ export default async function AdminPage() {
   const totalPosts = postsResult.count || 0
   const pendingPosts = pendingResult.count || 0
   const recentUsers = recentUsersResult.data || []
-    // Update the type to include the user relation
+
+  // Fetch login history with user display names
   type LoginHistory = Database['public']['Tables']['login_history']['Row'];
   type User = Database['public']['Tables']['users']['Row'];
   type UserDisplayNames = Record<string, string>;
 
-  // First, let's modify the query to include error handling
+  // Get the 10 most recent logins
   const { data: loginHistoryData, error: loginHistoryError } = await supabase
     .from('login_history')
     .select('*')
     .order('login_time', { ascending: false })
-    .limit(10) as { data: LoginHistory[] | null; error: any };
-  console.log('Login history:', loginHistoryData);
+    .limit(10);
+
+  if (loginHistoryError) {
+    console.error('Error fetching login history:', loginHistoryError);
+  }
 
   const discordIds = loginHistoryData?.map(login => login.discord_id).filter(Boolean) || [];
   let usersMap: UserDisplayNames = {};
@@ -95,7 +93,6 @@ export default async function AdminPage() {
   console.log('Processed login history with display names:', loginHistory);
   
   // Debug logging
-  console.log('Login history query result:', loginHistoryResult)
   console.log('Processed login history:', loginHistory)
 
   return (

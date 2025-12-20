@@ -71,7 +71,6 @@ export default function HomePage() {
         // Fetch active wars count - use a dedicated endpoint
         const warsRes = await fetch('/api/wars?status=ACTIVE')
         const { wars } = await warsRes.json()
-        console.log('wars', wars)
 
         setStats({
           memberCount: humanMembers.length,

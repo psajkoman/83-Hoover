@@ -18,8 +18,21 @@ export default function WarManagement() {
   const [editEnemyFaction, setEditEnemyFaction] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [isCheckingKills, setIsCheckingKills] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        console.log('Fetching user role...')
+        const res = await fetch('/api/user/role')
+        const data = await res.json()
+        console.log('API Response - Role:', data.role, 'Type:', typeof data.role)
+        setUserRole(data.role)
+      } catch (error) {
+        console.error('Error fetching user role:', error)
+      }
+    }
+    fetchUserRole()
     fetchWars()
   }, [])
 
@@ -148,25 +161,44 @@ export default function WarManagement() {
     }
   }
 
-  const handleEndWar = async (warId: string) => {
-    if (!confirm('Are you sure you want to end this war?')) return
+  const handleEndWar = async (war: War) => {
+    const isPending = war.status === 'PENDING'
+    const confirmMessage = isPending 
+      ? 'Are you sure you want to delete this pending war? This action will permanently remove it from the database.'
+      : 'Are you sure you want to end this war?'
+    
+    if (!window.confirm(confirmMessage)) return
 
     try {
-      const res = await fetch(`/api/wars/${warId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ENDED' }),
-      })
+      if (isPending) {
+        // For pending wars, perform a DELETE request
+        const res = await fetch(`/api/wars/${war.slug || war.id}`, {
+          method: 'DELETE',
+        })
 
-      if (res.ok) {
-        fetchWars()
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Failed to delete war')
+        }
       } else {
-        const error = await res.json()
-        alert(error.error || 'Failed to end war')
+        // For active wars, mark as ended
+        const res = await fetch(`/api/wars/${war.slug || war.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ENDED' }),
+        })
+
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Failed to end war')
+        }
       }
-    } catch (error) {
-      console.error('Error ending war:', error)
-      alert('Failed to end war')
+      
+      // Refresh the wars list
+      fetchWars()
+    } catch (error: any) {
+      console.error(`Error ${isPending ? 'deleting' : 'ending'} war:`, error)
+      alert(error?.message || `Failed to ${isPending ? 'delete' : 'end'} war`)
     }
   }
 
@@ -195,6 +227,8 @@ export default function WarManagement() {
     }
   }
 
+  console.log('Rendering WarManagement - User role:', userRole, 'Button should be visible:', Boolean(userRole))
+  
   return (
     <Card variant="elevated">
       <div className="flex items-center justify-between mb-4">
@@ -202,10 +236,12 @@ export default function WarManagement() {
           <Swords className="w-5 h-5 text-gang-highlight" />
           <h3 className="font-bold text-xl text-white">War Management</h3>
         </div>
-        <Button onClick={() => setShowAddModal(true)} size="sm" className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Start War
-        </Button>
+        {true && (
+          <Button onClick={() => setShowAddModal(true)} size="sm" className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Start War
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -269,7 +305,7 @@ export default function WarManagement() {
                 <Button
                   size="sm"
                   variant="danger"
-                  onClick={() => handleEndWar(war.slug || war.id)}
+                  onClick={() => handleEndWar(war)}
                 >
                   {war.status === 'PENDING' ? 'Delete' : 'End War'}
                 </Button>

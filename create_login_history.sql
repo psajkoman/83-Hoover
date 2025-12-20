@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS public.login_history (
   
   -- Composite primary key
   PRIMARY KEY (discord_id, login_time),
-  -- Add foreign key constraint
-  CONSTRAINT fk_discord_id FOREIGN KEY (discord_id) REFERENCES auth.users(id) ON DELETE CASCADE
+  -- Add foreign key constraint to users.discord_id
+  CONSTRAINT fk_discord_id FOREIGN KEY (discord_id) REFERENCES users(discord_id) ON DELETE CASCADE
 );
 
 -- Create index on discord_id for faster queries

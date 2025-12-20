@@ -664,7 +664,8 @@ const extractImageUrls = (text: string): string[] => {
   const getServerDisplayName = (discordId: string | undefined, fallback: string) => {
     if (!discordId) return fallback
     const member = discordMembers.find((m: any) => m.id === discordId)
-    return member?.display_name || member?.nickname || member?.username || fallback
+    // Use display_name if available, otherwise fall back to the provided username
+    return member?.display_name || fallback
   }
 
   const handleMembersChange = (value: string) => {
@@ -922,7 +923,7 @@ const extractImageUrls = (text: string): string[] => {
               })()}
             </div>
           </div>
-          {session && war.status === 'ACTIVE' && (
+          {session && (war.status === 'ACTIVE' || war.status === 'PENDING') && (
             <Button 
               onClick={() => setShowAddModal(true)} 
               className="flex items-center gap-2 w-full sm:w-auto justify-center mt-4 sm:mt-0"
@@ -956,7 +957,7 @@ const extractImageUrls = (text: string): string[] => {
       {logs.length === 0 ? (
         <Card className="text-center py-12">
           <p className="text-gray-400 mb-4">No encounter logs yet</p>
-          {session && war.status === 'ACTIVE' && (
+          {session && (war.status === 'ACTIVE' || war.status === 'PENDING') && (
             <Button onClick={() => setShowAddModal(true)}>Add First Log</Button>
           )}
         </Card>
