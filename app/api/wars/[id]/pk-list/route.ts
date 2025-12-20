@@ -7,13 +7,14 @@ import { isUuid } from '@/lib/warSlug'
 interface DiscordUser {
   id: string
   username: string
-  discriminator: string
+  discriminator: string  // Changed to non-nullable as we'll ensure it's always a string
   avatar: string | null
   nickname?: string | null
   display_name?: string | null
   discord_id: string
   avatar_url?: string
   original_username?: string
+  current_username?: string
 }
 
 // Update the PK map type to include the full Discord user object
@@ -132,12 +133,20 @@ export async function GET(
             }
           }
 
+          // Ensure discordUser has all required fields and discriminator is not null
+          const safeDiscordUser = discordUser ? {
+            ...discordUser,
+            discriminator: discordUser.discriminator || '0',
+            discord_id: discordUser.discord_id || '',
+            avatar: discordUser.avatar || null
+          } : null;
+
           pkMap.set(key, {
             player_name: cleanName,
             faction: 'ENEMY',
             kill_count: 1,
             last_killed_at: log.date_time,
-            discord_user: discordUser
+            discord_user: safeDiscordUser
           })
         }
       }
@@ -183,12 +192,20 @@ export async function GET(
             }
           }
 
+          // Ensure discordUser has all required fields and discriminator is not null
+          const safeDiscordUser = discordUser ? {
+            ...discordUser,
+            discriminator: discordUser.discriminator || '0',
+            discord_id: discordUser.discord_id || '',
+            avatar: discordUser.avatar || null
+          } : null;
+
           pkMap.set(key, {
             player_name: cleanName,
             faction: 'FRIEND',
             kill_count: 1,
             last_killed_at: log.date_time,
-            discord_user: discordUser
+            discord_user: safeDiscordUser
           })
         }
       }
@@ -293,13 +310,24 @@ export async function GET(
       
       // If not found, try partial matching
       if (!discordUser) {
-        console.log(`  - Not found in userMap, trying partial match...`)
-        // Get all users from the map and try partial matching
-        discordUser = Array.from(userMap.values()).find(user => {
-          const usernamePartial = user.username?.toLowerCase().includes(playerName)
-          const displayNamePartial = user.display_name?.toLowerCase().includes(playerName)
-          return usernamePartial || displayNamePartial
-        })
+        console.log(`  - Not found in userMap, creating new user object...`)
+        // Create a new user object with default values
+        discordUser = {
+          id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          username: entry.player_name,
+          discriminator: '0',
+          avatar: null,
+          original_username: entry.player_name,
+          current_username: entry.player_name,
+          avatar_url: undefined,
+          discord_id: ''
+        };
+      } else {
+        // Ensure discriminator is never null
+        discordUser = {
+          ...discordUser,
+          discriminator: discordUser.discriminator || '0'
+        };
       }
       
       let displayName = entry.player_name

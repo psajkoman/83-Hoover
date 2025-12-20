@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     // Only admins and leaders can create turf zones
-    if (!user || !['ADMIN', 'LEADER'].includes(user.role)) {
+    if (!user || !['ADMIN', 'LEADER'].includes(user.role || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest) {
       .eq('discord_id', session.user.id)
       .single()
 
-    if (!user || !['ADMIN', 'LEADER'].includes(user.role)) {
+    if (!user || !['ADMIN', 'LEADER'].includes(user.role || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

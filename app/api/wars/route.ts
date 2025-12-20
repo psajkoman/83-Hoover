@@ -80,8 +80,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)
-    const isMember = user.role === 'MEMBER'
+    const userRole = user?.role || 'MEMBER' // Default to 'MEMBER' if role is null/undefined
+    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)
+    const isMember = userRole === 'MEMBER'
 
     if (!isAdmin && !isMember) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

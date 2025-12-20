@@ -49,7 +49,9 @@ export async function PATCH(request: NextRequest) {
       .eq('discord_id', (session.user as any).discordId)
       .single()
 
-    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)) {
+    // Handle case where user.role might be null
+    const userRole = user?.role || 'MEMBER' // Default to 'MEMBER' if role is null/undefined
+    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

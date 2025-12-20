@@ -28,7 +28,7 @@ export async function DELETE(
       .eq('discord_id', (session.user as any).discordId)
       .single()
 
-    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)) {
+    if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

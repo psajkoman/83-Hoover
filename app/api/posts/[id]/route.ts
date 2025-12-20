@@ -79,7 +79,7 @@ export async function PATCH(
 
     // Check permissions
     if (
-      post.author.discord_id !== session.user.id &&
+      post.author?.discord_id !== session.user.id &&
       !isPrivileged
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -145,7 +145,7 @@ export async function DELETE(
 
     // Check permissions
     if (
-      post.author.discord_id !== session.user.id &&
+      post.author?.discord_id !== session.user.id &&
       !isPrivileged
     ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

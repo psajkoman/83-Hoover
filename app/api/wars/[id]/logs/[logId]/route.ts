@@ -43,7 +43,8 @@ export async function PATCH(
       .eq('id', logId)
       .single()
 
-    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)
+    const userRole = user?.role || 'MEMBER' // Default to 'MEMBER' if role is null/undefined
+    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)
     // const isOwner = log?.submitted_by === user.id
 
     // Add time check (24 hours in milliseconds)
@@ -287,7 +288,8 @@ export async function DELETE(
     console.log('User found:', user)
 
     // Only admins can delete logs
-    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role)
+    const userRole = user?.role || 'MEMBER' // Default to 'MEMBER' if role is null/undefined
+    const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Only admins can delete logs' }, { status: 403 })
