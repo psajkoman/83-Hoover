@@ -26,9 +26,20 @@ export default function WarManagement() {
   const fetchWars = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/wars?status=ACTIVE')
-      const data = await res.json()
-      setWars(data.wars || [])
+      // Fetch both active and pending wars
+      const [activeRes, pendingRes] = await Promise.all([
+        fetch('/api/wars?status=ACTIVE'),
+        fetch('/api/wars?status=PENDING')
+      ])
+      
+      const activeData = await activeRes.json()
+      const pendingData = await pendingRes.json()
+      
+      // Combine and sort by created_at (newest first)
+      const allWars = [...(activeData.wars || []), ...(pendingData.wars || [])]
+      allWars.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      
+      setWars(allWars)
     } catch (error) {
       console.error('Error fetching wars:', error)
     } finally {
@@ -159,6 +170,31 @@ export default function WarManagement() {
     }
   }
 
+  const handleApproveWar = async (warId: string) => {
+    if (!confirm('Are you sure you want to approve this war?')) return
+
+    try {
+      const res = await fetch(`/api/wars/${warId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'ACTIVE',
+          is_approved: true 
+        }),
+      })
+
+      if (res.ok) {
+        fetchWars()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Failed to approve war')
+      }
+    } catch (error) {
+      console.error('Error approving war:', error)
+      alert('Failed to approve war')
+    }
+  }
+
   return (
     <Card variant="elevated">
       <div className="flex items-center justify-between mb-4">
@@ -197,6 +233,11 @@ export default function WarManagement() {
                   Started {new Date(war.started_at).toLocaleDateString()}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
+                  {war.status === 'PENDING' && (
+                    <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400">
+                      PENDING
+                    </span>
+                  )}
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${getWarLevelClasses(war.war_level)}`}>
                     {getWarLevelLabel(war.war_level)}
                   </span>
@@ -206,6 +247,16 @@ export default function WarManagement() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {war.status === 'PENDING' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleApproveWar(war.slug || war.id)}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    Approve
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -220,7 +271,7 @@ export default function WarManagement() {
                   variant="danger"
                   onClick={() => handleEndWar(war.slug || war.id)}
                 >
-                  End War
+                  {war.status === 'PENDING' ? 'Delete' : 'End War'}
                 </Button>
               </div>
             </div>

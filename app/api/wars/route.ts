@@ -73,12 +73,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { enemy_faction, war_type, war_level, regulations } = body
 
-    if (!enemy_faction) {
-      return NextResponse.json(
-        { error: 'Enemy faction is required' },
-        { status: 400 }
-      )
-    }
+    // Set default values if enemy_faction is empty
+    const effectiveEnemyFaction = enemy_faction?.trim() || 'Unknown Faction'
+    const warStatus = enemy_faction?.trim() ? 'ACTIVE' : 'PENDING'
 
     const userRole = user?.role || 'MEMBER' // Default to 'MEMBER' if role is null/undefined
     const isAdmin = ['ADMIN', 'LEADER', 'MODERATOR'].includes(userRole)
@@ -116,6 +113,9 @@ export async function POST(request: NextRequest) {
 
     const startedAt = new Date().toISOString()
     
+    // If this is a pending war, don't send to Discord yet
+    const skipDiscord = warStatus === 'PENDING'
+    
     // Function to check if a slug already exists
     const slugExists = async (slug: string): Promise<boolean> => {
       try {
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Generate the base slug and find a unique one
-    const baseSlug = await createWarSlug(enemy_faction, startedAt, 0)
+    const baseSlug = await createWarSlug(effectiveEnemyFaction, startedAt, 0)
     console.log('Generating unique slug based on:', baseSlug)
     
     const uniqueSlug = await generateUniqueSlug(baseSlug)
@@ -158,14 +158,15 @@ export async function POST(request: NextRequest) {
     const { data: war, error } = await (supabase as any)
       .from('faction_wars')
       .insert({
-        enemy_faction,
+        enemy_faction: effectiveEnemyFaction,
         started_by: user?.id,
-        status: 'ACTIVE',
+        status: warStatus,
         started_at: startedAt,
         slug: uniqueSlug,
         war_type: effectiveWarType,
         war_level: effectiveWarLevel,
         regulations: warRegulations,
+        is_approved: !!enemy_faction?.trim(), // Mark as approved if faction name was provided
       })
       .select()
       .single()
@@ -175,26 +176,28 @@ export async function POST(request: NextRequest) {
     }
 
     if (war) {
-      // Add discord_message_id to the war in the database (best effort)
-      try {
-        const discordResult = await sendWarToDiscord({
-          ...war,
-          scoreboard: { kills: 0, deaths: 0 },
-          siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
-        })
+      // Only send to Discord if this is an approved war
+      if (!skipDiscord) {
+        try {
+          const discordResult = await sendWarToDiscord({
+            ...war,
+            scoreboard: { kills: 0, deaths: 0 },
+            siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
+          })
 
-        if (discordResult.ok && discordResult.messageId) {
-          await supabase
-            .from('faction_wars')
-            .update({
-              discord_message_id: discordResult.messageId,
-              discord_channel_id: discordResult.channelId || null,
-            })
-            .eq('id', war.id)
+          if (discordResult.ok && discordResult.messageId) {
+            await supabase
+              .from('faction_wars')
+              .update({
+                discord_message_id: discordResult.messageId,
+                discord_channel_id: discordResult.channelId || null,
+              })
+              .eq('id', war.id)
+          }
+        } catch (error) {
+          console.error('Failed to send war to Discord:', error)
+          // Don't fail the request if Discord integration fails
         }
-      } catch (error) {
-        console.error('Failed to send war to Discord:', error)
-        // Don't fail the request if Discord integration fails
       }
 
       return NextResponse.json({ war }, { status: 201 })

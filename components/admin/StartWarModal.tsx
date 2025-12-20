@@ -27,6 +27,8 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Don't require enemy_faction to be filled out
     setIsSubmitting(true)
 
     try {
@@ -34,7 +36,7 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
       const effectiveWarLevel = mode === 'member' ? 'NON_LETHAL' : warLevel
 
       const body: any = {
-        enemy_faction: enemyFaction,
+        enemy_faction: enemyFaction.trim(), // Will be empty string if not provided
         war_type: effectiveWarType,
         war_level: effectiveWarLevel,
       }
@@ -88,15 +90,17 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
           {/* Enemy Faction */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Enemy Faction Name
+              Enemy Faction Name (leave empty for "Unknown Faction")
             </label>
             <Input
               type="text"
               placeholder="e.g., Eastside Hustler Crip"
               value={enemyFaction}
               onChange={(e) => setEnemyFaction(e.target.value)}
-              required
             />
+            <p className="mt-1 text-xs text-gray-400">
+              Leave empty to create a pending war that needs admin approval
+            </p>
           </div>
 
           {mode === 'member' && (
