@@ -127,7 +127,6 @@ export default function PlayerKillList({ warId, enemyFaction }: PlayerKillListPr
   const renderPlayer = (entry: PKEntry) => {
     // Check if we have a valid Discord user object or a discord_id
     const hasDiscordUser = Boolean(entry.discord_user?.discord_id)
-    console.log('entry', entry)
     const hasDiscordId = Boolean(entry.discord_id)
     const isInDiscord = hasDiscordUser || hasDiscordId
     

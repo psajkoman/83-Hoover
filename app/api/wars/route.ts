@@ -139,20 +139,16 @@ export async function POST(request: NextRequest) {
       const exists = await slugExists(slug)
       
       if (!exists) {
-        console.log(`Generated unique slug: ${slug}`)
         return slug
       }
       
-      console.log(`Slug ${slug} exists, trying next...`)
       return generateUniqueSlug(baseSlug, counter + 1)
     }
     
     // Generate the base slug and find a unique one
     const baseSlug = await createWarSlug(effectiveEnemyFaction, startedAt, 0)
-    console.log('Generating unique slug based on:', baseSlug)
     
     const uniqueSlug = await generateUniqueSlug(baseSlug)
-    console.log('Found unique slug:', uniqueSlug)
     
     // Create the war with the unique slug
     const { data: war, error } = await (supabase as any)

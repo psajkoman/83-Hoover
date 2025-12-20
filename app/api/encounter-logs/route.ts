@@ -23,8 +23,6 @@ export async function POST(request: Request) {
       war_level_changed_to_lethal,
     } = await request.json();
 
-    console.log('Received encounter log request:', { type, war_id, author });
-
     if (!type || !['ATTACK', 'DEFENSE'].includes(type)) {
       console.error('Invalid log type:', type);
       return NextResponse.json(
@@ -81,7 +79,6 @@ export async function POST(request: Request) {
           },
           cache: 'no-store',
         });
-        console.log('MEMBNER NICK', memberRes)
         if (memberRes.ok) {
           const member = await memberRes.json();
           displayName = member?.nick || member?.user?.global_name || member?.user?.username || displayName;

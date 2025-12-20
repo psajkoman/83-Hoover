@@ -257,9 +257,7 @@ export async function DELETE(
   try {
     const { id, logId } = await params
     const session = await getServerSession(authOptions)
-    
-    console.log('DELETE request - session:', session?.user)
-    
+        
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -268,7 +266,6 @@ export async function DELETE(
     const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore } as any)
 
     const discordId = (session.user as any).discordId || (session.user as any).id
-    console.log('Looking up user with discordId:', discordId)
 
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -284,8 +281,6 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
-
-    console.log('User found:', user)
 
     // Only admins can delete logs
     const userRole = user?.role || 'MEMBER' // Default to 'MEMBER' if role is null/undefined

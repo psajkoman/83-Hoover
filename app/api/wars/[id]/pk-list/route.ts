@@ -273,15 +273,11 @@ export async function GET(
       return { name, user: null }
     })
     
-    console.log('Matched users:', matches.filter(m => m.user).length, 'out of', allNames.length)
     
     // Convert to the expected format for the rest of the code
     const users = Array.from(matchedUsers).map(id => 
       allUsers?.find(u => u.discord_id === id)
     ).filter(Boolean)
-    
-    console.log('Matched users:', users.length, 'out of', allNames.length)
-    console.log('Fetched users from Supabase:', users.length)
     
     // Log any unmatched names for debugging
     const unmatched = matches.filter(m => !m.user).map(m => m.name)
@@ -289,16 +285,11 @@ export async function GET(
       console.log('Unmatched names:', unmatched.join(', '))
     }
     
-    // Reuse the existing userMap that was created earlier
-    // No need to recreate it as we already have all the mappings we need
-    console.log('User map size:', userMap.size)
     
     // Process the PK list and match users
     const pkList = Array.from(pkMap.values()).map((entry, index) => {
       const playerName = entry.player_name.toLowerCase()
       
-      // Debug logging
-      console.log(`Processing player: ${entry.player_name} (${entry.faction})`)
       
       // Try to find the user by either username, display name, or in the discord_user data
       let discordUser = Array.from(userMap.values()).find(user => {

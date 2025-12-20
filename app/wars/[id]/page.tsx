@@ -545,7 +545,6 @@ export default function WarDetailPage() {
         const res = await fetch('/api/user/role')
         const data = await res.json()
         setUserRole(data.role)
-        console.log('User role fetched:', data.role)
       } catch (error) {
         console.error('Error fetching user role:', error)
       }
@@ -906,10 +905,12 @@ const extractImageUrls = (text: string): string[] => {
                 )}
               </div>
               {war.status === 'ACTIVE' && (() => {
+                if (logs.length === 0) return null; // Don't show cooldown if no logs exist
+                
                 const sortedLogs = [...logs].sort((a, b) => 
                   new Date(b.date_time).getTime() - new Date(a.date_time).getTime()
                 );
-                const lastEncounterTime = sortedLogs.length > 0 ? sortedLogs[0]?.date_time : war.started_at;
+                const lastEncounterTime = sortedLogs[0]?.date_time || null;
                                
                 return (
                   <div className="flex items-center gap-2 text-sm">

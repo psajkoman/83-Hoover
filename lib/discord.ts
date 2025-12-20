@@ -143,8 +143,6 @@ export async function sendToDiscordWebhook(webhookUrl: string, payload: DiscordW
     });
 
     const responseText = await response.text();
-    console.log('Discord webhook response status:', response.status);
-    console.log('Discord webhook response:', responseText);
     
     if (!response.ok) {
       throw new Error(`Discord API error: ${response.status} - ${responseText}`);
@@ -206,10 +204,8 @@ export function buildEncounterWebhookPayload(
   if (!webhookUrl) {
     throw new Error(`No webhook URL configured for ${type} logs`);
   }
-  console.log('logData', logData)
   const color = 0x252b32;
   const logTime = logData.timestamp ? new Date(logData.timestamp) : new Date();
-  console.log('logTime', logTime);
   
   // Format the date and time using server's timezone (Europe/London)
   const formatTime = (date: Date) => {
@@ -231,7 +227,6 @@ export function buildEncounterWebhookPayload(
     return 0;
   })
   .map(member => member.isDead ? `${member.name} ☠️` : member.name);
-console.log(JSON.stringify(formatNames(membersWithDeaths)));
 const encounterFields = [
   {
     name: "`MEMBERS INVOLVED`",
@@ -308,7 +303,6 @@ export async function sendEncounterLogToDiscord(
   }
 ): Promise<DiscordWebhookSendResult> {
   try {
-    console.log(`[DEBUG] Sending ${type} log to Discord`);
     
     // Get the appropriate webhook URL based on log type
     const webhookUrl = type === 'ATTACK' 
@@ -320,16 +314,14 @@ export async function sendEncounterLogToDiscord(
       console.error(`[ERROR] ${errorMsg}`);
       return { ok: false, error: errorMsg };
     }
-    
-    console.log(`[DEBUG] Using webhook URL for ${type}:`, webhookUrl);
-    
+        
     const { payload } = buildEncounterWebhookPayload(type, logData);
     const res = await sendToDiscordWebhook(webhookUrl, payload);
     
     if (!res.ok) {
-      console.error(`[ERROR] Failed to send ${type} log to Discord:`, res.error || 'Unknown error');
+      console.error(`Failed to send ${type} log to Discord:`, res.error || 'Unknown error');
     } else {
-      console.log(`[SUCCESS] Successfully sent ${type} log to Discord`);
+      console.log(`Successfully sent ${type} log to Discord`);
     }
     
     return res;
@@ -357,8 +349,6 @@ export async function editDiscordWebhookMessage(
     });
 
     const responseText = await response.text();
-    console.log('Discord edit webhook response status:', response.status);
-    console.log('Discord edit webhook response:', responseText);
 
     return response.ok;
   } catch (error) {
@@ -378,8 +368,6 @@ export async function deleteDiscordWebhookMessage(
     });
 
     const responseText = await response.text();
-    console.log('Discord delete webhook response status:', response.status);
-    console.log('Discord delete webhook response:', responseText);
 
     return response.ok;
   } catch (error) {

@@ -23,10 +23,8 @@ export default function WarManagement() {
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        console.log('Fetching user role...')
         const res = await fetch('/api/user/role')
         const data = await res.json()
-        console.log('API Response - Role:', data.role, 'Type:', typeof data.role)
         setUserRole(data.role)
       } catch (error) {
         console.error('Error fetching user role:', error)
@@ -226,9 +224,7 @@ export default function WarManagement() {
       alert('Failed to approve war')
     }
   }
-
-  console.log('Rendering WarManagement - User role:', userRole, 'Button should be visible:', Boolean(userRole))
-  
+ 
   return (
     <Card variant="elevated">
       <div className="flex items-center justify-between mb-4">

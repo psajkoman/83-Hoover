@@ -90,10 +90,6 @@ export default async function AdminPage() {
     ...login,
     displayName: login.discord_id ? (usersMap[login.discord_id] || login.username || 'Unknown User') : 'Unknown User'
   }));
-  console.log('Processed login history with display names:', loginHistory);
-  
-  // Debug logging
-  console.log('Processed login history:', loginHistory)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

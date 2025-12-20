@@ -48,7 +48,6 @@ export function TimezoneProvider({ children }: { children: ReactNode }) {
       return d.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
         hour12: true,
         timeZone: useServerTime ? 'UTC' : Intl.DateTimeFormat().resolvedOptions().timeZone
       })
@@ -64,7 +63,6 @@ export function TimezoneProvider({ children }: { children: ReactNode }) {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
         hour12: true,
         timeZone: useServerTime ? 'UTC' : Intl.DateTimeFormat().resolvedOptions().timeZone
       })
