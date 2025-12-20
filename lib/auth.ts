@@ -7,11 +7,17 @@ import type { JWT } from 'next-auth/jwt'
 import DiscordProvider from 'next-auth/providers/discord'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
+import { headers } from 'next/headers'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+type UserData = {
+  username: string;
+  discriminator: string | null;
+};
 
 // Using Database type from @/types/supabase for type safety
 
@@ -79,44 +85,48 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile }): Promise<boolean> {
       if (account?.provider === 'discord' && profile) {
         try {
-          // Check if user exists
-          const { data: existingUser } = await supabaseAdmin
+          // Get client IP and user agent
+          const headersList = headers();
+          const ip = headersList.get('x-forwarded-for') || 
+                    headersList.get('x-real-ip') || 
+                    'unknown';
+          const userAgent = headersList.get('user-agent') || 'unknown';
+          
+          // Get the user's server display name (nickname if available, otherwise username)
+          const { data: userData } = await supabaseAdmin
             .from('users')
-            .select('*')
+            .select('username, display_name')
             .eq('discord_id', profile.id as string)
-            .single()
+            .single() as { data: { username: string; display_name: string | null } | null };
+          
+          if (userData) {
+            // Use the server display name if available, otherwise fall back to username
+            const displayName = userData.display_name || userData.username;
 
-          if (!existingUser) {
-            // Create new user
-            await (supabaseAdmin as any).from('users').insert({
-              discord_id: profile.id as string,
-              username: profile.username as string,
-              discriminator: (profile.discriminator as string) || null,
-              avatar: (profile.avatar as string) || null,
-              email: (profile.email as string) || null,
-              role: 'MEMBER',
-            })
-          } else {
-            // Update existing user
-            await (supabaseAdmin as any)
-              .from('users')
-              .update({
-                username: profile.username as string,
-                discriminator: (profile.discriminator as string) || null,
-                avatar: (profile.avatar as string) || null,
-                last_active: new Date().toISOString(),
+            // Insert the login history with the server display name
+            const { data, error } = await supabaseAdmin
+              .from('login_history')
+              .insert({
+                discord_id: profile.id as string,
+                username: displayName,
+                user_agent: userAgent,
+                login_time: new Date().toISOString()
               })
-              .eq('discord_id', profile.id as string)
+              .select();
+            if (error) {
+              console.error('Error inserting login history:', error);
+            } else {
+              console.log('Login history recorded:', data);
+            }
           }
         } catch (error) {
-          console.error('Error creating/updating user in Supabase:', error)
-          // Still allow sign in even if Supabase fails
+          console.error('Error logging login:', error);
         }
       }
-      return true
+      return true; // Allow the sign-in to proceed
     },
   },
 }
