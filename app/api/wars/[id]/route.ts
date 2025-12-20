@@ -99,7 +99,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status, war_type, war_level } = body
+    const { status, war_type, war_level, enemy_faction } = body
 
     const updateData: any = {}
     if (status) {
@@ -110,6 +110,27 @@ export async function PATCH(
     }
 
     if (war_type) updateData.war_type = war_type
+    
+    // If enemy_faction is being updated, generate a new slug
+    if (enemy_faction) {
+      // Fetch the war to get the started_at date
+      const { data: war } = await supabase
+        .from('faction_wars')
+        .select('started_at')
+        .eq('id', warId)
+        .single()
+        
+      const date = new Date(war?.started_at || new Date().toISOString())
+      const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`
+      
+      const slug = `${enemy_faction
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')}-${dateStr}`
+        
+      updateData.enemy_faction = enemy_faction
+      updateData.slug = slug
+    }
     
     // If trying to set war to non-lethal, check for existing kills first
     if (war_level === 'NON_LETHAL') {

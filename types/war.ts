@@ -22,6 +22,7 @@ export interface PKEntry {
 }
 
 export interface War {
+  slug: string;
   id: string;
   enemy_faction: string;
   status: 'PENDING' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
@@ -68,4 +69,12 @@ export interface WarStats {
   winner: 'FRIEND' | 'ENEMY' | 'DRAW';
   friendKills: number;
   enemyKills: number;
+}
+
+export interface WarApiResponse {
+  war: War & {
+    slug?: string;
+    discord_message_id?: string | null;
+    discord_channel_id?: string | null;
+  };
 }

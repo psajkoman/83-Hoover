@@ -6,17 +6,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Swords, Plus, Edit2, X } from 'lucide-react'
 import StartWarModal from './StartWarModal'
-
-interface War {
-  id: string
-  slug?: string
-  enemy_faction: string
-  status: string
-  war_type?: string
-  war_level?: string
-  started_at: string
-  ended_at: string | null
-}
+import type { War, WarApiResponse } from '@/types/war'
 
 export default function WarManagement() {
   const [wars, setWars] = useState<War[]>([])
@@ -25,6 +15,7 @@ export default function WarManagement() {
   const [editingWar, setEditingWar] = useState<War & { hasKills?: boolean } | null>(null)
   const [editWarType, setEditWarType] = useState<'UNCONTROLLED' | 'CONTROLLED'>('UNCONTROLLED')
   const [editWarLevel, setEditWarLevel] = useState<'NON_LETHAL' | 'LETHAL'>('NON_LETHAL')
+  const [editEnemyFaction, setEditEnemyFaction] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [isCheckingKills, setIsCheckingKills] = useState(false)
 
@@ -82,12 +73,14 @@ export default function WarManagement() {
       const newWarLevel = data.hasKills ? 'LETHAL' : ((war.war_level as any) === 'LETHAL' ? 'LETHAL' : 'NON_LETHAL')
       setEditWarLevel(newWarLevel)
       setEditWarType((war.war_type as any) === 'CONTROLLED' ? 'CONTROLLED' : 'UNCONTROLLED')
+      setEditEnemyFaction(war.enemy_faction)
     } catch (error) {
       console.error('Error checking for kills:', error)
       // Default to original behavior if there's an error
       setEditingWar(war)
       setEditWarType((war.war_type as any) === 'CONTROLLED' ? 'CONTROLLED' : 'UNCONTROLLED')
       setEditWarLevel((war.war_level as any) === 'LETHAL' ? 'LETHAL' : 'NON_LETHAL')
+      setEditEnemyFaction(war.enemy_faction)
     } finally {
       setIsCheckingKills(false)
     }
@@ -100,17 +93,38 @@ export default function WarManagement() {
 
   const saveWarEdits = async () => {
     if (!editingWar) return
+    
+    if (!editEnemyFaction.trim()) {
+      alert('Enemy faction name cannot be empty')
+      return
+    }
+    
     setIsSavingEdit(true)
     try {
-      const res = await fetch(`/api/wars/${editingWar.slug || editingWar.id}`, {
+      const warId = 'slug' in editingWar && editingWar.slug ? editingWar.slug : editingWar.id
+      const res = await fetch(`/api/wars/${warId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ war_type: editWarType, war_level: editWarLevel }),
+        body: JSON.stringify({ 
+          war_type: editWarType, 
+          war_level: editWarLevel,
+          enemy_faction: editEnemyFaction.trim()
+        }),
       })
 
       if (res.ok) {
+        const data: WarApiResponse = await res.json()
+        const updatedWar = data.war
         setEditingWar(null)
         fetchWars()
+        
+        // If we're on the war detail page, redirect to the new URL
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/wars/')) {
+          const newPath = `/wars/${updatedWar.slug || updatedWar.id}`
+          if (window.location.pathname !== newPath) {
+            window.history.pushState({}, '', newPath)
+          }
+        }
       } else {
         const error = await res.json().catch(() => ({}))
         alert(error.error || 'Failed to update war')
@@ -237,15 +251,26 @@ export default function WarManagement() {
             </div>
 
             <div className="p-4 space-y-4">
-              <div className="text-sm text-gray-400">
-                {editingWar.enemy_faction}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Enemy Faction Name
+                </label>
+                <input
+                  type="text"
+                  value={editEnemyFaction}
+                  onChange={(e) => setEditEnemyFaction(e.currentTarget.value)}
+                  className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight disabled:opacity-50"
+                  disabled={isSavingEdit}
+                />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">War Level</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  War Level
+                </label>
                 <select
                   value={editWarLevel}
-                  onChange={(e) => setEditWarLevel(e.target.value as 'NON_LETHAL' | 'LETHAL')}
+                  onChange={(e) => setEditWarLevel(e.currentTarget.value as 'NON_LETHAL' | 'LETHAL')}
                   className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight disabled:opacity-50"
                   disabled={isSavingEdit || editingWar?.hasKills}
                 >
@@ -262,11 +287,13 @@ export default function WarManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">War Type</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  War Type
+                </label>
                 <select
                   value={editWarType}
-                  onChange={(e) => setEditWarType(e.target.value as 'UNCONTROLLED' | 'CONTROLLED')}
-                  className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
+                  onChange={(e) => setEditWarType(e.currentTarget.value as 'UNCONTROLLED' | 'CONTROLLED')}
+                  className="w-full px-4 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight disabled:opacity-50"
                   disabled={isSavingEdit}
                 >
                   <option value="UNCONTROLLED">Uncontrolled</option>
@@ -275,10 +302,19 @@ export default function WarManagement() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button onClick={saveWarEdits} isLoading={isSavingEdit} className="flex-1">
-                  Save
+                <Button 
+                  onClick={saveWarEdits} 
+                  isLoading={isSavingEdit} 
+                  className="flex-1"
+                >
+                  Save Changes
                 </Button>
-                <Button type="button" variant="ghost" onClick={closeEditWar} disabled={isSavingEdit}>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={closeEditWar} 
+                  disabled={isSavingEdit}
+                >
                   Cancel
                 </Button>
               </div>
