@@ -114,21 +114,40 @@ export const authOptions: NextAuthOptions = {
           (extendedUser.app_metadata.provider_metadata?.request_url || '') :
           (extendedUser?.user_metadata?.request_url || '');
 
-        // Insert or update login history with the most recent visit
-        const { error: insertError } = await supabaseAdmin
+        // Check if user already has a login record
+        const { data: existingRecord } = await supabaseAdmin
           .from('login_history')
-          .upsert({
-            discord_id: profile.id,
-            username: displayName,
-            user_agent: userAgent,
-            login_time: new Date().toISOString(),
-            last_visited_url: requestUrl
-          }, {
-            onConflict: 'discord_id',
-            ignoreDuplicates: false
-          })
+          .select('id')
+          .eq('discord_id', profile.id)
+          .single();
 
-        if (insertError) console.error('Error inserting login history:', insertError)
+        if (existingRecord) {
+          // Update existing record using discord_id
+          const { error: updateError } = await supabaseAdmin
+            .from('login_history')
+            .update({
+              username: displayName,
+              user_agent: userAgent,
+              login_time: new Date().toISOString(),
+              last_visited_url: requestUrl
+            })
+            .eq('discord_id', profile.id);
+          
+          if (updateError) console.error('Error updating login history:', updateError);
+        } else {
+          // Insert new record if none exists
+          const { error: insertError } = await supabaseAdmin
+            .from('login_history')
+            .insert({
+              discord_id: profile.id,
+              username: displayName,
+              user_agent: userAgent,
+              login_time: new Date().toISOString(),
+              last_visited_url: requestUrl
+            });
+          
+          if (insertError) console.error('Error inserting login history:', insertError);
+        }
       } catch (error) {
         console.error('Error in signIn callback:', error)
       }
