@@ -905,18 +905,20 @@ const extractImageUrls = (text: string): string[] => {
                 )}
               </div>
               {war.status === 'ACTIVE' && (() => {
-                if (logs.length === 0) return null; // Don't show cooldown if no logs exist
+                // Filter for attack logs and sort by date_time (encounter time)
+                const attackLogs = logs.filter(log => log.log_type === 'ATTACK');
+                if (attackLogs.length === 0) return null; // Don't show cooldown if no attack logs exist
                 
-                const sortedLogs = [...logs].sort((a, b) => 
+                const sortedLogs = [...attackLogs].sort((a, b) => 
                   new Date(b.date_time).getTime() - new Date(a.date_time).getTime()
                 );
-                const lastEncounterTime = sortedLogs[0]?.date_time || null;
+                const lastAttackTime = sortedLogs[0]?.date_time || null;
                                
                 return (
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <CooldownStatus 
-                      lastEncounterTime={lastEncounterTime}
+                      lastEncounterTime={lastAttackTime}
                       cooldownHours={war.regulations?.attacking_cooldown_hours || 6}
                     />
                   </div>
