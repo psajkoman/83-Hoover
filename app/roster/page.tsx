@@ -52,7 +52,7 @@ export default function RosterPage() {
         <p className="text-gray-400 text-lg">View all members and their roles</p>
       </div>
 
-      <div className="bg-gray-900 rounded-lg shadow-lg p-6">
+      <div className="bg-gang-secondary/90 rounded-lg shadow-lg p-6">
         <div className="space-y-4">
           {sortedMembers.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -82,7 +82,7 @@ export default function RosterPage() {
                           <p className="text-lg font-medium text-white truncate">{displayName}</p>
                           {member.joinedAt && (
                             <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
-                              Joined: {format(new Date(member.joinedAt), 'MMM d, yyyy')}
+                              {format(new Date(member.joinedAt), 'MMM d, yyyy')}
                             </span>
                           )}
                         </div>

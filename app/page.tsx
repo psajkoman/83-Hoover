@@ -374,12 +374,6 @@ export default function HomePage() {
           </Card>
         </div>
       </div>
-
-      {/* Member Preview */}
-      <Card variant="elevated">
-        <h2 className="text-2xl font-bold text-white mb-4">Faction Members</h2>
-        <DiscordMembersList />
-      </Card>
     </div>
   )
 }
