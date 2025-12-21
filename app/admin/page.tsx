@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import DiscordMembersList from '@/components/admin/DiscordMembersList'
 import WarManagement from '@/components/admin/WarManagement'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions)
@@ -53,43 +54,36 @@ export default async function AdminPage() {
   const pendingPosts = pendingResult.count || 0
   const recentUsers = recentUsersResult.data || []
 
-  // Fetch login history with user display names
-  type LoginHistory = Database['public']['Tables']['login_history']['Row'];
-  type User = Database['public']['Tables']['users']['Row'];
-  type UserDisplayNames = Record<string, string>;
+  // Fetch the most recent login for each user with their last visited URL
+  type LoginHistory = Database['public']['Tables']['login_history']['Row'] & {
+    displayName: string;
+  };
 
-  // Get the 10 most recent logins
+  // Get the most recent login for each user
   const { data: loginHistoryData, error: loginHistoryError } = await supabase
     .from('login_history')
     .select('*')
-    .order('login_time', { ascending: false })
-    .limit(10);
+    .order('login_time', { ascending: false });
 
   if (loginHistoryError) {
     console.error('Error fetching login history:', loginHistoryError);
   }
 
-  const discordIds = loginHistoryData?.map(login => login.discord_id).filter(Boolean) || [];
-  let usersMap: UserDisplayNames = {};
-  if (discordIds.length > 0) {
-    const { data: usersData } = await supabase
-      .from('users')
-      .select('discord_id, display_name')
-      .in('discord_id', discordIds) as { data: Array<{ discord_id: string; display_name: string }> | null };
-    if (usersData) {
-      usersMap = usersData.reduce((acc: UserDisplayNames, user) => {
-        if (user.discord_id) {
-          acc[user.discord_id] = user.display_name;
-        }
-        return acc;
-      }, {});
+  // Group by user and get the most recent login for each
+  const uniqueUserLogins = new Map<string, LoginHistory>();
+  loginHistoryData?.forEach(login => {
+    if (!uniqueUserLogins.has(login.discord_id)) {
+      uniqueUserLogins.set(login.discord_id, {
+        ...login,
+        displayName: login.username || 'Unknown User'
+      });
     }
-  }
+  });
 
-  const loginHistory = (loginHistoryData || []).map(login => ({
-    ...login,
-    displayName: login.discord_id ? (usersMap[login.discord_id] || login.username || 'Unknown User') : 'Unknown User'
-  }));
+  // Convert to array and sort by most recent login
+  const loginHistory = Array.from(uniqueUserLogins.values())
+    .sort((a, b) => new Date(b.login_time).getTime() - new Date(a.login_time).getTime())
+    .slice(0, 10); // Get top 10 most recent logins
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -159,24 +153,34 @@ export default async function AdminPage() {
         
         {/* Login History */}
         <Card variant="elevated" className="h-full">
-          <h3 className="font-bold text-xl text-white mb-4">Recent Logins</h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {loginHistory.map((login) => (
-              <div key={`${login.discord_id}-${login.login_time}`} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-                <div>
-                  <p className="font-medium text-white">
+          <h3 className="font-bold text-xl text-white mb-4">Recent Visits</h3>
+          <Table className="min-w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Site Location</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loginHistory.map((login) => (
+                <TableRow key={`${login.discord_id}-${login.login_time}`}>
+                  <TableCell className="font-medium">
                     {login.displayName}
-                  </p>
-                  <p className="text-sm text-gray-400">
+                  </TableCell>
+                  <TableCell>
                     {new Date(login.login_time).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {loginHistory.length === 0 && (
-              <p className="text-gray-400 text-center py-4">No login history found</p>
-            )}
-          </div>
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate">
+                    {login.last_visited_url || 'N/A'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {loginHistory.length === 0 && (
+            <p className="text-gray-400 text-center py-4">No visit history found</p>
+          )}
         </Card>
       </div>
 

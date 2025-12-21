@@ -2,7 +2,7 @@
 // See lib/supabase/middleware.ts for the new authentication system
 // Keep this file for backward compatibility with existing NextAuth routes
 
-import { NextAuthOptions } from 'next-auth'
+import { NextAuthOptions, User } from 'next-auth'
 import type { JWT } from 'next-auth/jwt'
 import DiscordProvider from 'next-auth/providers/discord'
 import { createClient } from '@supabase/supabase-js'
@@ -94,14 +94,38 @@ export const authOptions: NextAuthOptions = {
           console.error('Error fetching user data:', userError)
         }
 
-        // Insert login history
+        // Define extended user type with metadata
+        type ExtendedUser = User & {
+          app_metadata?: {
+            provider?: string;
+            provider_metadata?: {
+              request_url?: string;
+            };
+          };
+          user_metadata?: {
+            request_url?: string;
+          };
+        };
+
+        const extendedUser = user as ExtendedUser;
+
+        // Get current URL from the request headers or referrer
+        const requestUrl = extendedUser?.app_metadata?.provider === 'discord' ? 
+          (extendedUser.app_metadata.provider_metadata?.request_url || '') :
+          (extendedUser?.user_metadata?.request_url || '');
+
+        // Insert or update login history with the most recent visit
         const { error: insertError } = await supabaseAdmin
           .from('login_history')
-          .insert({
+          .upsert({
             discord_id: profile.id,
             username: displayName,
             user_agent: userAgent,
-            login_time: new Date().toISOString()
+            login_time: new Date().toISOString(),
+            last_visited_url: requestUrl
+          }, {
+            onConflict: 'discord_id',
+            ignoreDuplicates: false
           })
 
         if (insertError) console.error('Error inserting login history:', insertError)

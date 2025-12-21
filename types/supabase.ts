@@ -251,12 +251,14 @@ export type Database = {
           login_time: string
           user_agent: string | null
           username: string | null
+          last_visited_url: string | null
         }
         Insert: {
           discord_id: string
           login_time?: string
           user_agent?: string | null
           username?: string | null
+          last_visited_url?: string | null
         }
         Update: {
           discord_id?: string
