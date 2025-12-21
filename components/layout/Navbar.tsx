@@ -7,13 +7,13 @@ import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User, Swords } 
 import { signOut, useSession } from 'next-auth/react'
 import Button from '../ui/Button'
 import Image from 'next/image'
+import { useGuild } from '@/hooks/useGuild'
 
 export default function Navbar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [guildIconUrl, setGuildIconUrl] = useState<string | null>(null)
-  const [guildName, setGuildName] = useState<string | null>(null)
+  const { iconUrl: guildIconUrl, name: guildName } = useGuild();
   const [displayName, setDisplayName] = useState<string | null>(null)
 
   const navItems = [
@@ -27,22 +27,6 @@ export default function Navbar() {
 
   const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role)
 
-  useEffect(() => {
-    const fetchGuildIcon = async () => {
-      try {
-        const res = await fetch('/api/discord/guild')
-        const data = await res.json()
-        if (res.ok) {
-          if (data?.iconUrl) setGuildIconUrl(data.iconUrl)
-          if (data?.name) setGuildName(data.name)
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    fetchGuildIcon()
-  }, [])
 
   useEffect(() => {
     const fetchDisplayName = async () => {

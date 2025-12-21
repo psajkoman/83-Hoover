@@ -4,17 +4,7 @@ import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import { Users, RefreshCw, Search } from 'lucide-react'
 import Image from 'next/image'
-
-interface DiscordMember {
-  id: string
-  username: string
-  discriminator: string
-  avatar: string | null
-  nickname: string | null
-  roles: string[]
-  joinedAt: string
-  bot: boolean
-}
+import { DiscordMember, getAvatarUrl, getDefaultAvatarUrl } from '@/lib/discord/avatar'
 
 export default function DiscordMembersList() {
   const [members, setMembers] = useState<DiscordMember[]>([])
@@ -62,15 +52,6 @@ export default function DiscordMembersList() {
       setFilteredMembers(filtered)
     }
   }, [searchQuery, members])
-
-  const getAvatarUrl = (member: DiscordMember) => {
-    if (member.avatar) {
-      return `https://cdn.discordapp.com/avatars/${member.id}/${member.avatar}.png?size=64`
-    }
-    // Default Discord avatar
-    const defaultAvatarNum = parseInt(member.discriminator) % 5
-    return `https://cdn.discordapp.com/embed/avatars/${defaultAvatarNum}.png`
-  }
 
   if (error) {
     return (
@@ -140,7 +121,7 @@ export default function DiscordMembersList() {
                 className="flex items-center gap-3 p-3 bg-gray-800/30 hover:bg-gray-800/50 rounded-lg transition-colors"
               >
                 <Image 
-                  src={getAvatarUrl(member) || '/default-avatar.png'} 
+                  src={getAvatarUrl(member, 40) || getDefaultAvatarUrl(member.discriminator)}
                   alt={`${member.username}'s avatar`}
                   width={40}
                   height={40}
@@ -155,7 +136,7 @@ export default function DiscordMembersList() {
                   </p>
                 </div>
                 <div className="text-xs text-gray-500">
-                  {new Date(member.joinedAt).toLocaleDateString()}
+                  {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'N/A'}
                 </div>
               </div>
             ))
