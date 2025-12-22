@@ -173,8 +173,12 @@ export default function AnnouncementsSection() {
         </div>
 
         {canManage ? (
-          <Button size="sm" onClick={openCreate} className="w-full xs:w-auto">
-            New Announcement
+          <Button 
+            size="sm" 
+            onClick={openCreate} 
+            className="whitespace-nowrap px-3 py-1.5 text-sm"
+          >
+            New
           </Button>
         ) : null}
       </div>
