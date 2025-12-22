@@ -2,11 +2,30 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { Database } from '@/types/supabase'
+import Image from 'next/image'
+import { format, formatDistanceToNow } from 'date-fns'
+import { getGuildMembers } from '@/lib/discord'
+
+// Helper function to get text color based on background color
+const getTextColor = (bgColor: string): string => {
+  if (!bgColor) return '#ffffff';
+  
+  // Convert hex to RGB
+  const r = parseInt(bgColor.slice(1, 3), 16);
+  const g = parseInt(bgColor.slice(3, 5), 16);
+  const b = parseInt(bgColor.slice(5, 7), 16);
+  
+  // Calculate luminance (perceived brightness)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // Return black for light colors, white for dark colors
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
 
 type User = Database['public']['Tables']['users']['Row']
 type LoginHistory = Database['public']['Tables']['login_history']['Row']
 import Card from '@/components/ui/Card'
-import { Users, FileText, MapPin, Settings } from 'lucide-react'
+import { Users, FileText, MapPin, Settings, UserPlus, LogOut } from 'lucide-react'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import DiscordMembersList from '@/components/admin/DiscordMembersList'
@@ -32,27 +51,54 @@ export default async function AdminPage() {
     redirect('/')
   }
 
-  // Fetch admin stats and login history
+  // Fetch current Discord members
+  let currentMemberIds: Set<string> = new Set();
+  try {
+    const members = await getGuildMembers();
+    members.forEach(member => {
+      if (member.user?.id) {
+        currentMemberIds.add(member.user.id);
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching Discord members:', error);
+  }
+
   const [
     usersResult, 
     postsResult, 
     pendingResult, 
-    recentUsersResult
+    recentUsersResult,
+    allUsersResult
   ] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }),
     supabase.from('posts').select('id', { count: 'exact', head: true }),
     supabase.from('posts').select('id', { count: 'exact', head: true }).eq('is_pinned', false),
     supabase
       .from('users')
-      .select('id, username, role, joined_at')
+      .select('id, username, role, joined_at, discord_id')
       .order('joined_at', { ascending: false })
-      .limit(10)
+      .limit(10),
+    supabase
+      .from('users')
+      .select('id, username, discord_id, role, joined_at, last_active, avatar, display_name')
+      .order('username', { ascending: true })
   ])
 
   const totalUsers = usersResult.count || 0
   const totalPosts = postsResult.count || 0
   const pendingPosts = pendingResult.count || 0
   const recentUsers = recentUsersResult.data || []
+  const allUsers = (allUsersResult.data || []).map(user => ({
+    ...user,
+    isInDiscord: currentMemberIds.has(user.discord_id)
+  })).sort((a, b) => {
+    // Sort by whether they're in Discord (in Discord first), then by username
+    if (a.isInDiscord === b.isInDiscord) {
+      return (a.username || '').localeCompare(b.username || '');
+    }
+    return a.isInDiscord ? -1 : 1;
+  })
 
   // Fetch the most recent login for each user with their last visited URL
   type LoginHistory = Database['public']['Tables']['login_history']['Row'] & {
@@ -101,7 +147,7 @@ export default async function AdminPage() {
         <Card className="text-center">
           <Users className="w-8 h-8 mx-auto mb-2 text-gang-highlight" />
           <div className="text-3xl font-bold text-white mb-1">{totalUsers}</div>
-          <div className="text-sm text-gray-400">Total Members</div>
+          <div className="text-sm text-gray-400">All Time Members</div>
         </Card>
         
         <Card className="text-center">

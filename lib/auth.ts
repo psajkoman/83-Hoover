@@ -29,7 +29,12 @@ export const authOptions: NextAuthOptions = {
   },
   session: { strategy: 'jwt' },
   callbacks: {
-    async jwt({ token, account, profile }: { token: JWT; account?: any; profile?: any }) {
+    async jwt({ token, account, profile, trigger }: { 
+      token: JWT; 
+      account?: any; 
+      profile?: any;
+      trigger?: 'signIn' | 'signUp' | 'update' | undefined;
+    }) {
       if (account && profile) {
         token.discordId = profile.id as string
         token.username = profile.username as string
@@ -38,8 +43,7 @@ export const authOptions: NextAuthOptions = {
         token.email = profile.email as string
       }
 
-      // Fetch role from Supabase if not already set
-      if (token.discordId && !token.role) {
+      if (token.discordId) {
         try {
           const { data: user, error } = await supabaseAdmin
             .from('users')
@@ -47,9 +51,13 @@ export const authOptions: NextAuthOptions = {
             .eq('discord_id', token.discordId)
             .single<{ role: 'ADMIN' | 'LEADER' | 'MODERATOR' | 'MEMBER' | 'GUEST' }>()
           
-          if (!error) token.role = user?.role || 'MEMBER'
-          else token.role = 'MEMBER'
-        } catch {
+          if (!error && user?.role) {
+            token.role = user.role
+          } else {
+            token.role = 'MEMBER'
+          }
+        } catch (error) {
+          console.error('Error fetching user role:', error)
           token.role = 'MEMBER'
         }
       }
@@ -59,11 +67,30 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user && token) {
+        let userRole = token.role || 'MEMBER'
+        
+        if (token.discordId) {
+          try {
+            const { data: user } = await supabaseAdmin
+              .from('users')
+              .select('role')
+              .eq('discord_id', token.discordId)
+              .single()
+              
+            if (user?.role) {
+              userRole = user.role
+              token.role = userRole
+            }
+          } catch (error) {
+            console.error('Error fetching user role in session callback:', error)
+          }
+        }
+
         session.user.discordId = token.discordId as string | undefined
         session.user.username = token.username as string | undefined
         session.user.discriminator = token.discriminator as string | undefined
         session.user.avatar = token.avatar as string | undefined
-        session.user.role = token.role
+        session.user.role = userRole
 
         // Avatar URL: use Discord avatar if present, otherwise default embed
         session.user.image = token.discordId && token.avatar
@@ -77,8 +104,6 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider !== 'discord' || !profile) return true
 
       try {
-        console.log('Discord sign-in:', profile.id, profile.username)
-
         const userAgent = headers().get('user-agent') || 'unknown'
 
         // Fetch display name from your Supabase users table

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User, Swords } from 'lucide-react'
@@ -8,13 +8,19 @@ import { signOut, useSession } from 'next-auth/react'
 import Button from '../ui/Button'
 import Image from 'next/image'
 import { useGuild } from '@/hooks/useGuild'
+import { useApi } from '@/hooks/useApi'
 
 export default function Navbar() {
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { data: session, update } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { iconUrl: guildIconUrl, name: guildName } = useGuild();
-  const [displayName, setDisplayName] = useState<string | null>(null)
+  const { iconUrl: guildIconUrl, name: guildName, isLoading, error } = useGuild();
+  const { data: userData } = useApi<{ displayName: string }>('/api/user/me', {
+    enabled: !!session,
+    debounceMs: 500,
+  })
+
+  const displayName = userData?.displayName || null
 
   const navItems = [
     { href: '/', label: 'Feed', icon: Home },
@@ -25,27 +31,10 @@ export default function Navbar() {
     { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
   ]
 
-  const isAdmin = session?.user?.role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(session.user.role)
+  const role = session?.user?.role
+  const isAdmin = role && ['ADMIN', 'LEADER', 'MODERATOR'].includes(role)
 
 
-  useEffect(() => {
-    const fetchDisplayName = async () => {
-      if (!session) {
-        setDisplayName(null)
-        return
-      }
-
-      try {
-        const res = await fetch('/api/user/me')
-        const data = await res.json()
-        if (res.ok && data?.displayName) setDisplayName(data.displayName)
-      } catch {
-        // ignore
-      }
-    }
-
-    fetchDisplayName()
-  }, [session])
 
   return (
     <nav className="bg-gang-secondary/95 backdrop-blur-md border-b border-gang-accent/30 sticky top-0 z-50 shadow-lg transition-shadow duration-200">
@@ -209,10 +198,10 @@ export default function Navbar() {
                   </button>
                 </>
               ) : (
-                <Link
-                  href="/auth/signin"
+                <Link 
+                  href="/auth/signin" 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block"
+                  className="block w-full"
                 >
                   <Button className="w-full">Sign In with Discord</Button>
                 </Link>

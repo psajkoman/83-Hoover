@@ -1,5 +1,7 @@
 // lib/discord.ts
 import { formatServerTime } from './dateUtils';
+import { getToken } from 'next-auth/jwt';
+import { NextRequest } from 'next/server';
 interface DiscordWebhookPayload {
   content?: string;
   embeds?: Array<{
@@ -570,14 +572,51 @@ export async function updateWarInDiscord(messageId: string, war: CurrentWarEmbed
 }
 
 export async function deleteWarFromDiscord(messageId: string): Promise<boolean> {
-  try {
-    const webhookUrl = process.env.DISCORD_CURRENT_WARS_WEBHOOK;
-    if (!webhookUrl) {
-      throw new Error('No webhook URL configured for current wars');
-    }
-    return await deleteDiscordWebhookMessage(webhookUrl, messageId);
-  } catch (error) {
-    console.error('Error in deleteWarFromDiscord:', error);
+  const webhookUrl = process.env.DISCORD_WAR_WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.error('DISCORD_WAR_WEBHOOK_URL is not set');
     return false;
+  }
+
+  return deleteDiscordWebhookMessage(webhookUrl, messageId);
+}
+
+export interface DiscordGuildMember {
+  user?: {
+    id: string;
+    username: string;
+    discriminator: string;
+    avatar?: string;
+  };
+  nick?: string;
+  roles: string[];
+  joined_at: string;
+}
+
+export async function getGuildMembers(): Promise<DiscordGuildMember[]> {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  const guildId = process.env.DISCORD_GUILD_ID;
+  
+  if (!token || !guildId) {
+    console.error('DISCORD_BOT_TOKEN or DISCORD_GUILD_ID is not set');
+    return [];
+  }
+
+  try {
+    const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`, {
+      headers: {
+        'Authorization': `Bot ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch guild members: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching Discord guild members:', error);
+    return [];
   }
 }

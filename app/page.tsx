@@ -6,6 +6,7 @@ import { Users, Sword, Shield, Activity, MapPin } from 'lucide-react'
 import DiscordMembersList from '@/components/admin/DiscordMembersList'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
+import { useApi } from '@/hooks/useApi'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { formatRelativeTime } from '@/lib/utils'
@@ -50,65 +51,57 @@ interface MediaPreviewPost {
 
 export default function HomePage() {
   const { data: session } = useSession()
-  const [stats, setStats] = useState<FactionStats | null>(null)
-  const [loading, setLoading] = useState(true)
   const [mediaPosts, setMediaPosts] = useState<MediaPreviewPost[]>([])
   const [mediaLoading, setMediaLoading] = useState(false)
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!session) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        // Fetch Discord members (excludes bots)
-        const membersRes = await fetch('/api/discord/members')
-        const membersData = await membersRes.json()
-        const humanMembers = membersData.members?.filter((m: any) => !m.bot) || []
-
-        // Fetch active wars count - use a dedicated endpoint
-        const warsRes = await fetch('/api/wars?status=ACTIVE')
-        const { wars } = await warsRes.json()
-
-        setStats({
-          memberCount: humanMembers.length,
-          activeWars: wars?.length || 0,
-          controlledTurf: 5, // Hardcoded for now - replace with API call
-          activityLog: [
-            {
-              type: 'member',
-              action: 'created',
-              target: 'Davion Porter',
-              timestamp: new Date().toISOString(),
-              actor: 'System'
-            },
-            {
-              type: 'member',
-              action: 'created',
-              target: 'Daquan Grady',
-              timestamp: new Date().toISOString(),
-              actor: 'System'
-            },
-            {
-              type: 'member',
-              action: 'created',
-              target: '5 new members',
-              timestamp: new Date().toISOString(),
-              actor: 'System'
-            }
-          ]
-        })
-      } catch (error) {
-        console.error('Failed to load stats:', error)
-      } finally {
-        setLoading(false)
-      }
+  // Use the custom hook for API calls with debouncing
+  const { data: membersData, loading: membersLoading } = useApi<{ members: any[] }>(
+    '/api/discord/members',
+    {
+      enabled: !!session,
+      debounceMs: 500,
     }
+  )
 
-    fetchStats()
-  }, [session])
+  const { data: warsData, loading: warsLoading } = useApi<{ wars: any[] }>(
+    '/api/wars?status=ACTIVE',
+    {
+      enabled: !!session,
+      debounceMs: 500,
+    }
+  )
+
+  // Calculate stats based on the fetched data
+  const stats: FactionStats = {
+    memberCount: membersData?.members?.filter((m: any) => !m.bot).length || 0,
+    activeWars: warsData?.wars?.length || 0,
+    controlledTurf: 5, // Hardcoded for now
+    activityLog: [
+      {
+        type: 'member' as const,
+        action: 'created' as const,
+        target: 'Davion Porter',
+        timestamp: new Date().toISOString(),
+        actor: 'System'
+      },
+      {
+        type: 'member' as const,
+        action: 'created' as const,
+        target: 'Daquan Grady',
+        timestamp: new Date().toISOString(),
+        actor: 'System'
+      },
+      {
+        type: 'member' as const,
+        action: 'created' as const,
+        target: '5 new members',
+        timestamp: new Date().toISOString(),
+        actor: 'System'
+      }
+    ]
+  }
+
+  const loading = membersLoading || warsLoading
 
   useEffect(() => {
     const fetchMediaPreview = async () => {

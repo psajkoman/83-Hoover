@@ -102,16 +102,16 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
           {/* Enemy Faction */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Enemy Faction Name (leave empty for "Unknown Faction")
+              Enemy Faction
             </label>
             <Input
               type="text"
-              placeholder="e.g., Eastside Hustler Crip"
+              placeholder="e.g. West Side Playboy Gangster"
               value={enemyFaction}
               onChange={(e) => setEnemyFaction(e.target.value)}
             />
             <p className="mt-1 text-xs text-gray-400">
-              Leave empty to create a pending war that needs admin approval
+              If you don't know the name of the faction, leave it as empty.
             </p>
           </div>
 
