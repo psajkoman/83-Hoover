@@ -165,80 +165,27 @@ export async function PATCH(
             (session.user as any)?.discordId,
             ((session?.user as any)?.name as string) || 'System'
           ),
-        })
+        });
 
-        await editDiscordWebhookMessage(webhookUrl, messageId, payload)
+        console.log('About to edit Discord message with:', {
+          webhookUrl: webhookUrl ? 'Webhook URL present' : 'NO WEBHOOK URL',
+          messageId: messageId || 'NO MESSAGE ID',
+          payloadKeys: Object.keys(payload)
+        });
+
+        const result = await editDiscordWebhookMessage(webhookUrl, messageId, payload);
+        console.log('Edit result:', result);
+        
+        if (!result) {
+          console.error('Failed to edit Discord message');
+        }
       }
     } catch (e) {
       console.warn('Failed to sync edited log to Discord:', e)
     }
 
-    // Update current war embed scoreboard (best effort)
-    try {
-      const warId = (log as any)?.war_id
-      if (warId) {
-        const { data: warRow } = await supabase
-          .from('faction_wars')
-          .select('discord_message_id, enemy_faction, slug, war_level, war_type, started_at, regulations')
-          .eq('id', warId)
-          .single()
-
-        const messageId = (warRow as any)?.discord_message_id as string | null
-        if (messageId) {
-          const { data: logs } = await supabase
-            .from('war_logs')
-            .select('players_killed, friends_involved')
-            .eq('war_id', warId)
-
-          const kills = (logs || []).reduce(
-            (sum: number, l: any) => sum + (Array.isArray(l.players_killed) ? l.players_killed.length : 0),
-            0
-          )
-          const deaths = (logs || []).reduce(
-            (sum: number, l: any) => sum + (Array.isArray(l.friends_involved) ? l.friends_involved.length : 0),
-            0
-          )
-
-          const [
-            { data: lastDefense },
-            { data: lastAttack }
-          ] = await Promise.all([
-            supabase
-              .from('war_logs')
-              .select('*')
-              .eq('war_id', warId)
-              .eq('log_type', 'DEFENSE')
-              .order('date_time', { ascending: false })
-              .limit(1)
-              .single(),
-            supabase
-              .from('war_logs')
-              .select('*')
-              .eq('war_id', warId)
-              .eq('log_type', 'ATTACK')
-              .order('date_time', { ascending: false })
-              .limit(1)
-              .single()
-          ]);
-
-          await updateWarInDiscord(messageId, {
-            id: warId,
-            slug: (warRow as any)?.slug,
-            enemy_faction: (warRow as any)?.enemy_faction,
-            war_level: (warRow as any)?.war_level,
-            war_type: (warRow as any)?.war_type,
-            started_at: (warRow as any)?.started_at,
-            regulations: (warRow as any)?.regulations,
-            scoreboard: { kills, deaths },
-            siteUrl: request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL,
-            lastDefense: lastDefense || null,
-            lastAttack: lastAttack || null
-          })
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to update current war embed after log edit:', e)
-    }
+    // Note: Removed war embed update from log edit flow as it's not needed
+    // and was causing errors when DISCORD_CURRENT_WARS_WEBHOOK is not set
 
     return NextResponse.json({ success: true })
   } catch (error) {

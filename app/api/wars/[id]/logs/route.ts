@@ -219,22 +219,37 @@ export async function POST(
         log.submitted_by_user?.username || 'System'
       )
 
-      await sendEncounterLogToDiscord(log_type, {
-        title: `${log_type === 'ATTACK' ? 'Attack on' : 'Defense from'} ${warRow?.enemy_faction}`,
-        description: formatServerTime(date_time),
-        timestamp: new Date(date_time),
-        notes: notes || undefined,
-        evidence_url: evidence_url || undefined,
-        members_involved: membersArray,
-        friends_killed: friendsArray,
-        enemies_killed: playersArray,
-        war_url: origin ? `${origin}/wars/${warRow?.slug}` : undefined,
-        author: {
-          username: author.username,
-          displayName: author.displayName,
-          avatar: author.avatar
+      try {
+        const discordRes = await sendEncounterLogToDiscord(log_type, {
+          title: `${log_type === 'ATTACK' ? 'Attack on' : 'Defense from'} ${warRow?.enemy_faction}`,
+          description: formatServerTime(date_time),
+          timestamp: new Date(date_time),
+          notes: notes || undefined,
+          evidence_url: evidence_url || undefined,
+          members_involved: membersArray,
+          friends_killed: friendsArray,
+          enemies_killed: playersArray,
+          war_url: origin ? `${origin}/wars/${warRow?.slug}` : undefined,
+          author: {
+            username: author.username,
+            displayName: author.displayName,
+            avatar: author.avatar
+          }
+        })
+
+        if (discordRes?.ok && discordRes.messageId) {
+          await supabase
+            .from('war_logs')
+            .update({
+              discord_message_id: discordRes.messageId,
+              discord_channel_id: discordRes.channelId || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', log.id)
         }
-      })
+      } catch (e) {
+        console.warn('Failed to post war log to Discord:', e)
+      }
     }
 
     return NextResponse.json({ success: true }, { status: 201 })

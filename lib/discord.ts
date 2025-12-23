@@ -340,9 +340,34 @@ export async function editDiscordWebhookMessage(
   messageId: string,
   payload: DiscordWebhookPayload
 ): Promise<boolean> {
+  if (!webhookUrl || !messageId) {
+    console.error('Missing required parameters for editing Discord message:', { 
+      hasWebhookUrl: !!webhookUrl,
+      hasMessageId: !!messageId
+    });
+    return false;
+  }
+
   try {
-    const url = webhookUrl.split('?')[0];
-    const response = await fetch(`${url}/messages/${messageId}`, {
+    // Parse the URL to handle it properly
+    let url: URL;
+    try {
+      url = new URL(webhookUrl);
+    } catch (e) {
+      console.error('Invalid webhook URL:', webhookUrl);
+      return false;
+    }
+
+    // Remove any query parameters and fragments
+    url.search = '';
+    url.hash = '';
+
+    // Construct the edit URL
+    const editUrl = `${url.toString()}/messages/${messageId}`;
+
+    console.log('Editing Discord message at URL:', editUrl.replace(/webhooks\/([^/]+)\//, 'webhooks/***/'));
+
+    const response = await fetch(editUrl, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -350,11 +375,30 @@ export async function editDiscordWebhookMessage(
       body: JSON.stringify(payload),
     });
 
-    const responseText = await response.text();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to edit Discord message:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        messageId,
+        webhookUrl: url.toString().replace(/webhooks\/([^/]+)\//, 'webhooks/***/')
+      });
+      return false;
+    }
 
-    return response.ok;
+    console.log('Successfully edited Discord message:', {
+      messageId,
+      status: response.status
+    });
+    return true;
   } catch (error) {
-    console.error('Failed to edit Discord webhook message:', error);
+    console.error('Error editing Discord message:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      messageId,
+      webhookUrl: webhookUrl ? webhookUrl.replace(/webhooks\/([^/]+)\//, 'webhooks/***/') : 'no webhook URL'
+    });
     return false;
   }
 }
