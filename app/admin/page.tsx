@@ -5,6 +5,7 @@ import { Database } from '@/types/supabase'
 import Image from 'next/image'
 import { format, formatDistanceToNow } from 'date-fns'
 import { getGuildMembers } from '@/lib/discord'
+import { RecentVisits } from '@/components/admin/RecentVisits'
 
 // Helper function to get text color based on background color
 const getTextColor = (bgColor: string): string => {
@@ -31,6 +32,7 @@ import { authOptions } from '@/lib/auth'
 import DiscordMembersList from '@/components/admin/DiscordMembersList'
 import WarManagement from '@/components/admin/WarManagement'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions)
@@ -100,29 +102,65 @@ export default async function AdminPage() {
     return a.isInDiscord ? -1 : 1;
   })
 
-  // Fetch the most recent login for each user with their last visited URL
-  type LoginHistory = Database['public']['Tables']['login_history']['Row'] & {
-    displayName: string;
-  };
-
-  // Get the most recent login for each user
+  // First, get the login history
   const { data: loginHistoryData, error: loginHistoryError } = await supabase
     .from('login_history')
     .select('*')
-    .order('login_time', { ascending: false });
+    .order('login_time', { ascending: false })
+    .limit(50); // Get more records to ensure we have enough after processing
+
+  if (loginHistoryError) {
+    console.error('Error fetching login history:', loginHistoryError);
+  }
+
+  // Get unique user IDs from login history
+  const userIds = [...new Set(loginHistoryData?.map(login => login.discord_id) || [])];
+
+  // Fetch user data for these IDs
+  const { data: usersData } = await supabase
+    .from('users')
+    .select('discord_id, username, discriminator, avatar')
+    .in('discord_id', userIds);
+
+  // Create a map of user data by discord_id
+  const usersMap = new Map(usersData?.map(user => [user.discord_id, user]) || []);
+
+  // Process login history with user data
+  const processedLoginHistory = (loginHistoryData || []).map(login => {
+    const user = usersMap.get(login.discord_id);
+    // Use username from login_history first, fall back to users table, then 'Unknown User'
+    const displayName = login.username || user?.username || 'Unknown User';
+    const discriminator = user?.discriminator || '0';
+    const avatarUrl = user?.avatar 
+      ? `https://cdn.discordapp.com/avatars/${login.discord_id}/${user.avatar}.png?size=128`
+      : `https://cdn.discordapp.com/embed/avatars/${(parseInt(discriminator) % 5)}.png`;
+
+    return {
+      discord_id: login.discord_id,
+      login_time: login.login_time,
+      last_visited_url: login.last_visited_url,
+      displayName,
+      avatarUrl,
+      discriminator,
+      // Format the time for display
+      formattedTime: formatDistanceToNow(new Date(login.login_time), { addSuffix: true }),
+      // Store the full date for tooltips
+      fullDate: new Date(login.login_time)
+    };
+  });
+
+  // Type for the processed login history
+  type ProcessedLoginHistory = typeof processedLoginHistory[0];
 
   if (loginHistoryError) {
     console.error('Error fetching login history:', loginHistoryError);
   }
 
   // Group by user and get the most recent login for each
-  const uniqueUserLogins = new Map<string, LoginHistory>();
-  loginHistoryData?.forEach(login => {
+  const uniqueUserLogins = new Map<string, ProcessedLoginHistory>();
+  processedLoginHistory.forEach(login => {
     if (!uniqueUserLogins.has(login.discord_id)) {
-      uniqueUserLogins.set(login.discord_id, {
-        ...login,
-        displayName: login.username || 'Unknown User'
-      });
+      uniqueUserLogins.set(login.discord_id, login);
     }
   });
 
@@ -199,33 +237,21 @@ export default async function AdminPage() {
         
         {/* Login History */}
         <Card variant="elevated" className="h-full">
-          <h3 className="font-bold text-xl text-white mb-4">Recent Visits</h3>
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Site Location</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loginHistory.map((login) => (
-                <TableRow key={`${login.discord_id}-${login.login_time}`}>
-                  <TableCell className="font-medium">
-                    {login.displayName}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(login.login_time).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate">
-                    {login.last_visited_url || 'N/A'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold text-lg text-white">Recent Visits</h3>
+            <span className="text-xs px-2 py-1 bg-gray-700 rounded-full text-gray-300">
+              {loginHistory.length} {loginHistory.length === 1 ? 'user' : 'users'}
+            </span>
+          </div>
+          <RecentVisits loginHistory={loginHistory} />
           {loginHistory.length === 0 && (
-            <p className="text-gray-400 text-center py-4">No visit history found</p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center mb-3">
+                <Users className="w-8 h-8 text-gray-500" />
+              </div>
+              <p className="text-gray-400">No recent visits found</p>
+              <p className="text-sm text-gray-500 mt-1">User activity will appear here</p>
+            </div>
           )}
         </Card>
       </div>
