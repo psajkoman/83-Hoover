@@ -858,30 +858,30 @@ const extractImageUrls = (text: string): string[] => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-3 sm:py-6">
       {/* Header */}
       <button
         onClick={() => router.push('/wars')}
-        className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 sm:mb-6 transition-colors text-sm sm:text-base"
+        className="flex items-center gap-1.5 text-gray-400 hover:text-white mb-3 sm:mb-6 transition-colors text-xs sm:text-sm"
       >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Wars
+        <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <span>Back to Wars</span>
       </button>
 
-      <Card variant="elevated" className="mb-6 sm:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <Card variant="elevated" className="mb-4 sm:mb-6 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-              <Swords className="w-6 h-6 sm:w-8 sm:h-8 text-gang-highlight flex-shrink-0" />
-              <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+            <div className="flex flex-wrap items-start sm:items-center gap-2 mb-2 sm:mb-3">
+              <Swords className="w-5 h-5 sm:w-6 sm:h-6 text-gang-highlight flex-shrink-0 mt-0.5 sm:mt-0" />
+              <h1 className="text-xl sm:text-2xl font-bold text-white truncate">
                 {war.enemy_faction}
               </h1>
-              <div className="flex flex-wrap gap-2">
-                <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getWarLevelClasses(war.war_level)}`}>
+              <div className="flex flex-wrap gap-1.5">
+                <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap ${getWarLevelClasses(war.war_level)}`}>
                   {getWarLevelLabel(war.war_level)}
                 </span>
                 <span
-                  className={`px-2 sm:px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                  className={`px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
                     war.status === 'ACTIVE'
                       ? 'bg-gang-highlight/20 text-gang-highlight'
                       : 'bg-gray-600/20 text-gray-400'
@@ -891,23 +891,22 @@ const extractImageUrls = (text: string): string[] => {
                 </span>
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-gray-400 text-sm sm:text-base">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 flex-shrink-0 text-gray-400" />
+            <div className="space-y-1.5 sm:space-y-2">
+              <div className="flex flex-col xs:flex-row xs:items-center gap-1.5 sm:gap-3 text-gray-400 text-xs sm:text-sm">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-gray-400" />
                   <span><span className="text-white">Started:</span> <span className="text-gray-400">{formatDateTime(war.started_at)}</span></span>
                 </div>
                 {war.ended_at && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 flex-shrink-0 opacity-0 sm:opacity-100" />
-                    <span>Ended: {formatDateTime(war.ended_at)}</span>
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 opacity-0 sm:opacity-100" />
+                    <span>Ended: <span className="text-gray-400">{formatDateTime(war.ended_at)}</span></span>
                   </div>
                 )}
               </div>
               {war.status === 'ACTIVE' && (() => {
-                // Filter for attack logs and sort by date_time (encounter time)
                 const attackLogs = logs.filter(log => log.log_type === 'ATTACK');
-                if (attackLogs.length === 0) return null; // Don't show cooldown if no attack logs exist
+                if (attackLogs.length === 0) return null;
                 
                 const sortedLogs = [...attackLogs].sort((a, b) => 
                   new Date(b.date_time).getTime() - new Date(a.date_time).getTime()
@@ -915,8 +914,8 @@ const extractImageUrls = (text: string): string[] => {
                 const lastAttackTime = sortedLogs[0]?.date_time || null;
                                
                 return (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
                     <CooldownStatus 
                       lastEncounterTime={lastAttackTime}
                       cooldownHours={war.regulations?.attacking_cooldown_hours || 6}
@@ -929,9 +928,9 @@ const extractImageUrls = (text: string): string[] => {
           {session && (war.status === 'ACTIVE' || war.status === 'PENDING') && (
             <Button 
               onClick={() => setShowAddModal(true)} 
-              className="flex items-center gap-2 w-full sm:w-auto justify-center mt-4 sm:mt-0"
+              className="flex items-center gap-1.5 w-full sm:w-auto justify-center mt-3 sm:mt-0 h-9 sm:h-10 text-xs sm:text-sm"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Add Log</span>
             </Button>
           )}
@@ -970,61 +969,67 @@ const extractImageUrls = (text: string): string[] => {
             <Card key={log.id} variant="elevated">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-0 sm:gap-3 mb-4">
                 {/* Log type and buttons container for mobile */}
-                <div className="sm:hidden flex items-center justify-between w-full mb-2">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                    log.log_type === 'ATTACK' 
-                      ? 'bg-gang-highlight/20 text-gang-highlight border border-gang-highlight/30' 
-                      : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                  }`}>
-                    {log.log_type === 'ATTACK' ? '⚔️ ATTACK' : '🛡️ DEFENSE'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                  {editingLogId === log.id ? (
-                    <>
-                      <button
-                        onClick={() => saveEdit(log.id, log.date_time)}
-                        className="px-3 py-1 bg-gang-highlight text-white rounded text-sm hover:bg-gang-highlight/80 transition-colors"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={cancelEditing}
-                        className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-500 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      {canDeleteLog(log) && (
+                <div className="sm:hidden w-full">
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
+                      log.log_type === 'ATTACK' 
+                        ? 'bg-gang-highlight/20 text-gang-highlight border border-gang-highlight/30' 
+                        : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                    }`}>
+                      {log.log_type === 'ATTACK' ? '⚔️ ATTACK' : '🛡️ DEFENSE'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                    {editingLogId === log.id ? (
+                      <>
                         <button
-                          onClick={() => handleDeleteLog(log.id)}
-                          className="p-2 hover:bg-orange-500/20 rounded transition-colors"
-                          title="Delete log (Admin only)"
+                          onClick={() => saveEdit(log.id, log.date_time)}
+                          className="px-3 py-1 bg-gang-highlight text-white rounded text-sm hover:bg-gang-highlight/80 transition-colors"
                         >
-                          <Trash2 className="w-4 h-4 text-orange-400" />
+                          Save
                         </button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {canEditLog(log) && (
                         <button
-                          onClick={() => startEditing(log)}
-                          className="p-2 hover:bg-gang-highlight/20 rounded transition-colors"
-                          title={`Edit log (${getTimeRemaining(log.created_at)})`}
+                          onClick={cancelEditing}
+                          className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-500 transition-colors"
                         >
-                          <Edit2 className="w-4 h-4 text-gang-highlight" />
+                          Cancel
                         </button>
-                      )}
-                      {canDeleteLog(log) && (
-                        <button
-                          onClick={() => handleDeleteLog(log.id)}
-                          className="p-2 hover:bg-orange-500/20 rounded transition-colors"
-                          title="Delete log (Admin only)"
-                        >
-                          <Trash2 className="w-4 h-4 text-orange-400" />
-                        </button>
-                      )}
-                    </>
-                  )}
+                        {canDeleteLog(log) && (
+                          <button
+                            onClick={() => handleDeleteLog(log.id)}
+                            className="p-2 hover:bg-orange-500/20 rounded transition-colors"
+                            title="Delete log (Admin only)"
+                          >
+                            <Trash2 className="w-4 h-4 text-orange-400" />
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {canEditLog(log) && (
+                          <button
+                            onClick={() => startEditing(log)}
+                            className="p-2 hover:bg-gang-highlight/20 rounded transition-colors"
+                            title={`Edit log (${getTimeRemaining(log.created_at)})`}
+                          >
+                            <Edit2 className="w-4 h-4 text-gang-highlight" />
+                          </button>
+                        )}
+                        {canDeleteLog(log) && (
+                          <button
+                            onClick={() => handleDeleteLog(log.id)}
+                            className="p-2 hover:bg-orange-500/20 rounded transition-colors"
+                            title="Delete log (Admin only)"
+                          >
+                            <Trash2 className="w-4 h-4 text-orange-400" />
+                          </button>
+                        )}
+                      </>
+                    )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                    <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-white font-medium">{formatDateTime(log.date_time)}</span>
                   </div>
                 </div>
 

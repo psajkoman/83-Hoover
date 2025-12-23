@@ -4,9 +4,18 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { Swords, Plus, Edit2, X } from 'lucide-react'
+import { Swords, Plus, Edit2, X, Clock, Target, Users, Shield } from 'lucide-react'
 import StartWarModal from './StartWarModal'
 import type { War, WarApiResponse } from '@/types/war'
+
+interface WarRegulations {
+  attacking_cooldown_hours: number
+  pk_cooldown_type: string
+  pk_cooldown_days: number | null
+  max_participants: number
+  weapon_restrictions: string
+  max_assault_rifles: number
+}
 
 export default function WarManagement() {
   const [wars, setWars] = useState<War[]>([])
@@ -19,6 +28,14 @@ export default function WarManagement() {
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [isCheckingKills, setIsCheckingKills] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [editRegulations, setEditRegulations] = useState<WarRegulations>({
+    attacking_cooldown_hours: 24,
+    pk_cooldown_type: 'permanent',
+    pk_cooldown_days: 7,
+    max_participants: 10,
+    weapon_restrictions: 'No restrictions',
+    max_assault_rifles: 0
+  })
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -94,8 +111,30 @@ export default function WarManagement() {
       // If war has kills, force LETHAL level
       const newWarLevel = data.hasKills ? 'LETHAL' : ((war.war_level as any) === 'LETHAL' ? 'LETHAL' : 'NON_LETHAL')
       setEditWarLevel(newWarLevel)
-      setEditWarType((war.war_type as any) === 'CONTROLLED' ? 'CONTROLLED' : 'UNCONTROLLED')
+      const warType = (war.war_type as any) === 'CONTROLLED' ? 'CONTROLLED' : 'UNCONTROLLED'
+      setEditWarType(warType)
       setEditEnemyFaction(war.enemy_faction)
+      
+      // Set regulations if they exist, otherwise use defaults
+      if (war.regulations) {
+        setEditRegulations({
+          attacking_cooldown_hours: war.regulations.attacking_cooldown_hours || 24,
+          pk_cooldown_type: war.regulations.pk_cooldown_type || 'permanent',
+          pk_cooldown_days: war.regulations.pk_cooldown_days || 7,
+          max_participants: war.regulations.max_participants || 10,
+          weapon_restrictions: war.regulations.weapon_restrictions || 'No restrictions',
+          max_assault_rifles: war.regulations.max_assault_rifles || 0
+        })
+      } else {
+        setEditRegulations({
+          attacking_cooldown_hours: 24,
+          pk_cooldown_type: 'permanent',
+          pk_cooldown_days: 7,
+          max_participants: 10,
+          weapon_restrictions: 'No restrictions',
+          max_assault_rifles: 0
+        })
+      }
     } catch (error) {
       console.error('Error checking for kills:', error)
       // Default to original behavior if there's an error
@@ -111,6 +150,13 @@ export default function WarManagement() {
   const closeEditWar = () => {
     if (isSavingEdit) return
     setEditingWar(null)
+  }
+
+  const handleRegulationChange = (field: keyof WarRegulations, value: any) => {
+    setEditRegulations(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
   const saveWarEdits = async () => {
@@ -130,7 +176,8 @@ export default function WarManagement() {
         body: JSON.stringify({ 
           war_type: editWarType, 
           war_level: editWarLevel,
-          enemy_faction: editEnemyFaction.trim()
+          enemy_faction: editEnemyFaction.trim(),
+          regulations: editWarType === 'CONTROLLED' ? editRegulations : null
         }),
       })
 
@@ -320,8 +367,8 @@ export default function WarManagement() {
       )}
 
       {editingWar && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gang-secondary border border-gray-700 rounded-lg max-w-lg w-full">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gang-secondary border border-gray-700 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="border-b border-gray-700 p-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-white">Edit War</h3>
               <button
@@ -383,6 +430,100 @@ export default function WarManagement() {
                   <option value="CONTROLLED">Controlled</option>
                 </select>
               </div>
+
+              {/* War Regulations - Only show for CONTROLLED wars */}
+              {editWarType === 'CONTROLLED' && (
+                <div className="space-y-4 pt-2">
+                  <h4 className="text-sm font-medium text-gray-300 border-b border-gray-700 pb-1">
+                    War Regulations
+                  </h4>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Attack Cooldown (hours)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editRegulations.attacking_cooldown_hours}
+                      onChange={(e) => handleRegulationChange('attacking_cooldown_hours', parseInt(e.target.value) || 24)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
+                      disabled={isSavingEdit}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      PK Cooldown Type
+                    </label>
+                    <select
+                      value={editRegulations.pk_cooldown_type}
+                      onChange={(e) => handleRegulationChange('pk_cooldown_type', e.target.value)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
+                      disabled={isSavingEdit}
+                    >
+                      <option value="permanent">Permanent</option>
+                      <option value="temporary">Temporary</option>
+                    </select>
+                  </div>
+                  
+                  {editRegulations.pk_cooldown_type === 'temporary' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        PK Cooldown (days)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editRegulations.pk_cooldown_days || ''}
+                        onChange={(e) => handleRegulationChange('pk_cooldown_days', parseInt(e.target.value) || 7)}
+                        className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
+                        disabled={isSavingEdit}
+                      />
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Max Participants
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editRegulations.max_participants}
+                      onChange={(e) => handleRegulationChange('max_participants', parseInt(e.target.value) || 10)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
+                      disabled={isSavingEdit}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Max Assault Rifles
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editRegulations.max_assault_rifles}
+                      onChange={(e) => handleRegulationChange('max_assault_rifles', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight"
+                      disabled={isSavingEdit}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Weapon Restrictions
+                    </label>
+                    <textarea
+                      value={editRegulations.weapon_restrictions}
+                      onChange={(e) => handleRegulationChange('weapon_restrictions', e.target.value)}
+                      className="w-full px-3 py-2 bg-gang-primary/50 border border-gang-accent/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gang-highlight min-h-[80px]"
+                      disabled={isSavingEdit}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <Button 

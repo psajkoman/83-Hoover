@@ -242,19 +242,19 @@ export function PlayerKillList({
   return (
     <div className="space-y-4 sm:space-y-6">
       <Card className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-white">
             {isWarEnded ? 'Final Scoreboard' : 'Player Kill List'}
           </h3>
           {isAdmin && (
-            <Button 
-              onClick={() => setShowAddModal(true)} 
-              size="sm" 
-              className="flex items-center gap-1.5 w-full sm:w-auto justify-center sm:justify-start"
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-gang-highlight/90 hover:bg-gang-highlight text-black text-sm font-medium rounded-md transition-colors"
+              title="Add Player (Admins Only)"
             >
-              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Add Player</span>
-            </Button>
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Player</span>
+            </button>
           )}
         </div>
 

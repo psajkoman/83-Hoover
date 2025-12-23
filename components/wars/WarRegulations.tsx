@@ -21,14 +21,14 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
   const isControlled = warType === 'CONTROLLED'
 
   return (
-    <Card variant="elevated">
-      <div className="flex items-center justify-between mb-4">
+    <Card variant="elevated" className="h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-gang-gold" />
-          <h3 className="font-bold text-xl text-white">War Regulations</h3>
+          <Shield className="w-5 h-5 text-gang-gold flex-shrink-0" />
+          <h3 className="font-bold text-lg sm:text-xl text-white">War Regulations</h3>
         </div>
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          className={`px-3 py-1 rounded-full text-xs font-semibold w-fit ${
             isControlled
               ? 'bg-purple-500/20 text-purple-400'
               : 'bg-gang-accent/20 text-gray-300'
@@ -47,13 +47,13 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Attacking Cooldown */}
         <div className="flex items-start gap-3">
           <Clock className="w-5 h-5 text-gang-highlight flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="text-white font-medium">Attack Cooldown</div>
-            <div className="text-sm text-gray-400">
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium text-sm sm:text-base">Attack Cooldown</div>
+            <div className="text-xs sm:text-sm text-gray-400 break-words">
               {regulations.attacking_cooldown_hours} hours between attacks
             </div>
           </div>
@@ -62,9 +62,9 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
         {/* PK Cooldown */}
         <div className="flex items-start gap-3">
           <Target className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="text-white font-medium">Player Kill Cooldown</div>
-            <div className="text-sm text-gray-400">
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium text-sm sm:text-base">Player Kill Cooldown</div>
+            <div className="text-xs sm:text-sm text-gray-400 break-words">
               {regulations.pk_cooldown_type === 'permanent'
                 ? 'Permanent'
                 : `${regulations.pk_cooldown_days} days`}
@@ -75,9 +75,9 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
         {/* Max Participants */}
         <div className="flex items-start gap-3">
           <Users className="w-5 h-5 text-gang-green flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="text-white font-medium">Maximum Participants</div>
-            <div className="text-sm text-gray-400">
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium text-sm sm:text-base">Maximum Participants</div>
+            <div className="text-xs sm:text-sm text-gray-400 break-words">
               {regulations.max_participants} members per attack
             </div>
           </div>
@@ -86,9 +86,9 @@ export default function WarRegulations({ warType, regulations }: WarRegulationsP
         {/* Weapon Restrictions */}
         <div className="flex items-start gap-3">
           <Shield className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="text-white font-medium">Weapon Restrictions</div>
-            <div className="text-sm text-gray-400">
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium text-sm sm:text-base">Weapon Restrictions</div>
+            <div className="text-xs sm:text-sm text-gray-400 break-words">
               {regulations.weapon_restrictions}
             </div>
             {/* <div className="text-xs text-gray-500 mt-1">
