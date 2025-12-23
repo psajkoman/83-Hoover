@@ -242,10 +242,21 @@ const encounterFields = [
   }
 ];
 
-const evidenceUrls = logData.evidence_url ? [logData.evidence_url] : [];
-const firstEvidenceUrl = evidenceUrls[0] || '';
-const firstEvidenceIsImage = /.(jpg|jpeg|png|gif|webp|bmp)$/i.test(firstEvidenceUrl);
-const firstEvidenceIsVideo = /.(mp4|webm|mov)$/i.test(firstEvidenceUrl);
+  // Split evidence URLs by comma and trim whitespace
+  const evidenceUrls = logData.evidence_url 
+    ? logData.evidence_url.split(',').map(url => url.trim()).filter(Boolean) 
+    : [];
+  
+  // Find first valid image URL (direct or Imgur)
+  const firstEvidenceUrl = evidenceUrls.find(url => {
+    const isDirectImage = /\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/i.test(url);
+    const isImgur = /imgur\.com\/[a-zA-Z0-9]+(\.[a-zA-Z]{3,4})?/i.test(url);
+    return isDirectImage || isImgur;
+  }) || '';
+  
+  // Check if first URL is an image (direct or Imgur)
+  const firstEvidenceIsImage = /(\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$|imgur\.com\/[a-zA-Z0-9]+(\.[a-zA-Z]{3,4})?)/i.test(firstEvidenceUrl);
+  const firstEvidenceIsVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(firstEvidenceUrl);
 
 const payload: DiscordWebhookPayload = {
   embeds: [{
@@ -259,7 +270,7 @@ const payload: DiscordWebhookPayload = {
         ? [{
             name: "`EVIDENCE`",
             value: evidenceUrls.length > 0
-              ? evidenceUrls.map((u: string) => `\u200B\u2002${u}`).join('\n')
+              ? evidenceUrls.join('\n')
               : 'No evidence provided',
             inline: false
           }]
