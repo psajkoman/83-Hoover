@@ -1,13 +1,8 @@
-'use client'
-
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
-import { Plus } from 'lucide-react'
-import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import { PlayerKillListItem } from './PlayerKillListItem'
 import { WarStatsCard } from './WarStatsCard'
-import { AddPlayerModal } from './AddPlayerModal'
 import { PKEntry } from '../../types/war'
 
 type DiscordMember = {
@@ -47,9 +42,7 @@ export function PlayerKillList({
   const { data: session } = useSession()
   const [pkList, setPkList] = useState<PKEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showAddModal, setShowAddModal] = useState(false)
   const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([])
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
   const [warStats, setWarStats] = useState<{
     logCounts: Record<string, number>;
     topDeaths?: Array<[string, number]>;  
@@ -75,7 +68,6 @@ export function PlayerKillList({
       setPkList(data.pkList || [])
     } catch (error) {
       console.error('Error fetching PK list:', error)
-      // Optionally set an error state here to show to the user
     } finally {
       setIsLoading(false)
     }
@@ -83,7 +75,6 @@ export function PlayerKillList({
 
   const fetchDiscordMembers = async () => {
     try {
-      setIsLoadingMembers(true)
       const res = await fetch('/api/discord/members')
       if (res.ok) {
         const data = await res.json()
@@ -91,32 +82,6 @@ export function PlayerKillList({
       }
     } catch (error) {
       console.error('Error fetching Discord members:', error)
-    } finally {
-      setIsLoadingMembers(false)
-    }
-  }
-
-  const handleAddPlayer = async (faction: 'FRIEND' | 'ENEMY', playerName: string) => {
-    try {
-      const res = await fetch(`/api/wars/${warId}/pk-list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          player_name: playerName,
-          faction
-        }),
-      })
-
-      if (res.ok) {
-        setShowAddModal(false)
-        fetchPKList()
-      } else {
-        const error = await res.json()
-        alert(error.error || 'Failed to add player')
-      }
-    } catch (error) {
-      console.error('Error adding player:', error)
-      alert('Failed to add player')
     }
   }
 
@@ -246,16 +211,6 @@ export function PlayerKillList({
           <h3 className="text-base sm:text-lg font-semibold text-white">
             {isWarEnded ? 'Final Scoreboard' : 'Player Kill List'}
           </h3>
-          {isAdmin && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gang-highlight/90 hover:bg-gang-highlight text-black text-sm font-medium rounded-md transition-colors"
-              title="Add Player (Admins Only)"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Add Player</span>
-            </button>
-          )}
         </div>
 
         {isLoading ? (
@@ -329,15 +284,6 @@ export function PlayerKillList({
           enemyList={enemyList}
         />
       )}
-
-      <AddPlayerModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdd={handleAddPlayer}
-        enemyFaction={enemyFaction}
-        discordMembers={discordMembers}
-        isLoading={isLoadingMembers}
-      />
     </div>
   )
 }
