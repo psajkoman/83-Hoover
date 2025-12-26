@@ -8,6 +8,7 @@ import DiscordProvider from 'next-auth/providers/discord'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
 import { headers } from 'next/headers'
+import { cookies } from 'next/headers'
 
 const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -177,7 +178,8 @@ export const authOptions: NextAuthOptions = {
         console.error('Error in signIn callback:', error)
       }
 
-      return true
+          return true
+
     }
   },
 }

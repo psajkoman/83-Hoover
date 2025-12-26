@@ -27,7 +27,7 @@ export default function Navbar() {
     { href: '/wars', label: 'Wars', icon: Swords },
     { href: '/turf', label: 'Turf Map', icon: Map },
     { href: '/roster', label: 'Roster', icon: User },
-    { href: '/gallery', label: 'Gallery', icon: ImageIcon },
+    { href: '/media', label: 'Media', icon: ImageIcon },
     { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
   ]
 
