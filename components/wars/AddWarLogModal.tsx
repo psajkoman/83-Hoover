@@ -27,6 +27,31 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
   const [loadingMembers, setLoadingMembers] = useState(true)
   const { data: session } = useSession()
   const { getCurrentTime, formatDateTime, formatTime } = useTimezone()
+  const [isOpen, setIsOpen] = useState(true)
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (isOpen) {
+        // Save the current scroll position
+        const scrollY = window.scrollY;
+        // Lock the body
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+
+        // Cleanup function to restore scrolling
+        return () => {
+          document.body.style.position = '';
+          document.body.style.top = '';
+          document.body.style.width = '';
+          document.body.style.overflow = '';
+          window.scrollTo(0, scrollY);
+        };
+      }
+    }
+  }, [isOpen]);
 
   const getCurrentServerTime = () => {
     return new Date(getCurrentTime())
@@ -59,6 +84,8 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
   const [showFriendsDropdown, setShowFriendsDropdown] = useState(false)
   const [showPlayersDropdown, setShowPlayersDropdown] = useState(false)
   const [cursorPosition, setCursorPosition] = useState(0)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
 
   const [selectedKilledMembers, setSelectedKilledMembers] = useState<Record<string, boolean>>({})
 
@@ -107,25 +134,47 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
 
   const handleFriendsChange = (value: string) => {
     setFormData({ ...formData, friends_involved: value })
-    // Get the last word being typed (after last comma)
     const words = value.split(',')
     const lastWord = words[words.length - 1].trim()
-    setShowFriendsDropdown(lastWord.length >= 2)
+    const shouldShow = lastWord.length >= 2
+    setShowFriendsDropdown(shouldShow)
+    if (shouldShow) {
+      setActiveDropdown('friends')
+      // Reset selection when typing
+      setSelectedSuggestionIndex(-1)
+    } else {
+      setActiveDropdown(null)
+    }
   }
 
   const handleMembersChange = (value: string) => {
     setFormData({ ...formData, members_involved: value })
     const words = value.split(',')
     const lastWord = words[words.length - 1].trim()
-    setShowMembersDropdown(lastWord.length >= 2)
+    const shouldShow = lastWord.length >= 2
+    setShowMembersDropdown(shouldShow)
+    if (shouldShow) {
+      setActiveDropdown('members')
+      // Reset selection when typing
+      setSelectedSuggestionIndex(-1)
+    } else {
+      setActiveDropdown(null)
+    }
   }
 
   const handlePlayersChange = (value: string) => {
     setFormData({ ...formData, players_killed: value })
-    // Get the last word being typed (after last comma)
     const words = value.split(',')
     const lastWord = words[words.length - 1].trim()
-    setShowPlayersDropdown(lastWord.length >= 2)
+    const shouldShow = lastWord.length >= 2
+    setShowPlayersDropdown(shouldShow)
+    if (shouldShow) {
+      setActiveDropdown('players')
+      // Reset selection when typing
+      setSelectedSuggestionIndex(-1)
+    } else {
+      setActiveDropdown(null)
+    }
   }
 
   const insertSuggestion = (field: 'members' | 'friends' | 'players', suggestion: string) => {
@@ -149,6 +198,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
       setFormData({ ...formData, players_killed: newValue + ', ' })
       setShowPlayersDropdown(false)
     }
+    setActiveDropdown(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -382,7 +432,28 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               type="text"
               value={formData.members_involved}
               onChange={(e) => handleMembersChange(e.target.value)}
-              onBlur={() => setTimeout(() => setShowMembersDropdown(false), 200)}
+              onBlur={() => setTimeout(() => {
+                setShowMembersDropdown(false)
+                setActiveDropdown(null)
+              }, 200)}
+              onKeyDown={(e) => {
+                const suggestions = getFilteredMembers(formData.members_involved.split(',').pop()?.trim() || '')
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setSelectedSuggestionIndex(prev => 
+                    prev < suggestions.length - 1 ? prev + 1 : prev >= 0 ? prev : 0
+                  )
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : 0)
+                } else if (e.key === 'Enter' && activeDropdown === 'members' && selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+                  e.preventDefault()
+                  insertSuggestion('members', suggestions[selectedSuggestionIndex].nickname || suggestions[selectedSuggestionIndex].username)
+                } else if (e.key === 'Escape') {
+                  setShowMembersDropdown(false)
+                  setActiveDropdown(null)
+                }
+              }}
               required
             />
 
@@ -392,7 +463,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               const suggestions = getFilteredMembers(lastWord)
               return suggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {suggestions.map((member) => {
+                  {suggestions.map((member, index) => {
                     const serverName = member.nickname || member.username
                     const showUsername = member.nickname && member.username !== member.nickname
                     return (
@@ -400,7 +471,12 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
                         key={member.id}
                         type="button"
                         onClick={() => insertSuggestion('members', serverName)}
-                        className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
+                        className={`w-full px-4 py-2 text-left transition-colors text-white text-sm ${
+                          activeDropdown === 'members' && 
+                          selectedSuggestionIndex === index 
+                            ? 'bg-gang-accent/40' 
+                            : 'hover:bg-gang-accent/20'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-gang-highlight">@</span>
@@ -469,7 +545,28 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               // placeholder="Start typing to see Discord suggestions..."
               value={formData.friends_involved}
               onChange={(e) => handleFriendsChange(e.target.value)}
-              onBlur={() => setTimeout(() => setShowFriendsDropdown(false), 200)}
+              onBlur={() => setTimeout(() => {
+                setShowFriendsDropdown(false)
+                setActiveDropdown(null)
+              }, 200)}
+              onKeyDown={(e) => {
+                const suggestions = getFilteredMembers(formData.friends_involved.split(',').pop()?.trim() || '')
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setSelectedSuggestionIndex(prev => 
+                    prev < suggestions.length - 1 ? prev + 1 : prev >= 0 ? prev : 0
+                  )
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : 0)
+                } else if (e.key === 'Enter' && activeDropdown === 'friends' && selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+                  e.preventDefault()
+                  insertSuggestion('friends', suggestions[selectedSuggestionIndex].nickname || suggestions[selectedSuggestionIndex].username)
+                } else if (e.key === 'Escape') {
+                  setShowFriendsDropdown(false)
+                  setActiveDropdown(null)
+                }
+              }}
             />
             
             {showFriendsDropdown && (() => {
@@ -478,7 +575,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               const suggestions = getFilteredMembers(lastWord)
               return suggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {suggestions.map((member) => {
+                  {suggestions.map((member, index) => {
                     const serverName = member.nickname || member.username
                     const showUsername = member.nickname && member.username !== member.nickname
                     return (
@@ -486,7 +583,12 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
                         key={member.id}
                         type="button"
                         onClick={() => insertSuggestion('friends', serverName)}
-                        className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
+                        className={`w-full px-4 py-2 text-left transition-colors text-white text-sm ${
+                          activeDropdown === 'friends' && 
+                          selectedSuggestionIndex === index 
+                            ? 'bg-gang-accent/40' 
+                            : 'hover:bg-gang-accent/20'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-gang-highlight">@</span>
@@ -519,7 +621,28 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               // placeholder="Start typing to see Discord suggestions..."
               value={formData.players_killed}
               onChange={(e) => handlePlayersChange(e.target.value)}
-              onBlur={() => setTimeout(() => setShowPlayersDropdown(false), 200)}
+              onBlur={() => setTimeout(() => {
+                setShowPlayersDropdown(false)
+                setActiveDropdown(null)
+              }, 200)}
+              onKeyDown={(e) => {
+                const suggestions = getFilteredMembers(formData.players_killed.split(',').pop()?.trim() || '')
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setSelectedSuggestionIndex(prev => 
+                    prev < suggestions.length - 1 ? prev + 1 : prev >= 0 ? prev : 0
+                  )
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : 0)
+                } else if (e.key === 'Enter' && activeDropdown === 'players' && selectedSuggestionIndex >= 0 && suggestions[selectedSuggestionIndex]) {
+                  e.preventDefault()
+                  insertSuggestion('players', suggestions[selectedSuggestionIndex].nickname || suggestions[selectedSuggestionIndex].username)
+                } else if (e.key === 'Escape') {
+                  setShowPlayersDropdown(false)
+                  setActiveDropdown(null)
+                }
+              }}
             />
             
             {showPlayersDropdown && (() => {
@@ -528,7 +651,7 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
               const suggestions = getFilteredMembers(lastWord)
               return suggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-gang-primary border border-gang-accent/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {suggestions.map((member) => {
+                  {suggestions.map((member, index) => {
                     const serverName = member.nickname || member.username
                     const showUsername = member.nickname && member.username !== member.nickname
                     return (
@@ -536,7 +659,12 @@ export default function AddWarLogModal({ warId, onClose, onSuccess }: AddWarLogM
                         key={member.id}
                         type="button"
                         onClick={() => insertSuggestion('players', serverName)}
-                        className="w-full px-4 py-2 text-left hover:bg-gang-accent/20 transition-colors text-white text-sm"
+                        className={`w-full px-4 py-2 text-left transition-colors text-white text-sm ${
+                          activeDropdown === 'players' && 
+                          selectedSuggestionIndex === index 
+                            ? 'bg-gang-accent/40' 
+                            : 'hover:bg-gang-accent/20'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-gang-highlight">@</span>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useLayoutEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Flame } from 'lucide-react'
@@ -35,6 +35,31 @@ export default function WarsPage() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [showStartWarModal, setShowStartWarModal] = useState(false)
   const { formatDateTime } = useTimezone()
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (showStartWarModal) {
+      // Save the current scroll position
+      const scrollY = window.scrollY;
+      // Lock the body
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.overflow = 'hidden';
+      
+      // Return a cleanup function to restore scrolling
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showStartWarModal]);
+
 
   useEffect(() => {
     fetchWars()
@@ -145,7 +170,7 @@ export default function WarsPage() {
       : 'bg-gang-green/20 text-gang-green border border-gang-green/30'
   }
 
-  const canStartWarAsMember = session?.user && userRole === 'MEMBER'
+  const canStartWar = session?.user && (userRole === 'MEMBER' || userRole === 'ADMIN')
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -157,7 +182,7 @@ export default function WarsPage() {
             <h1 className="text-4xl font-bold text-white">Faction Wars</h1>
           </div>
 
-          {canStartWarAsMember && (
+          {canStartWar && (
             <Button onClick={() => setShowStartWarModal(true)} className="flex items-center gap-2">
               <Swords className="w-4 h-4" />
               Start War
@@ -284,7 +309,7 @@ export default function WarsPage() {
 
       {showStartWarModal && (
         <StartWarModal
-          mode="member"
+          mode={userRole === 'MEMBER' ? 'member' : 'admin'}
           onClose={() => setShowStartWarModal(false)}
           onSuccess={() => {
             setShowStartWarModal(false)

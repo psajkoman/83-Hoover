@@ -314,38 +314,21 @@ export default function HomePage() {
         </Card>
       </div>
 
-      {/* Activity Log Section */}
+      {/* Radio Player Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
         <div className="lg:col-span-2">
-          <Card variant="elevated">
-            <h2 className="text-2xl font-bold text-white mb-4">Activity Log</h2>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {stats?.activityLog?.map((log, index) => (
-                <div key={index} className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 hover:bg-gray-800/30 rounded-lg transition-colors">
-                  <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
-                    log.type === 'war' ? 'bg-red-500' :
-                    log.type === 'log' ? 'bg-blue-500' :
-                    log.type === 'member' ? 'bg-green-500' : 'bg-purple-500'
-                  }`}></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-white">
-                        {log.actor || 'System'}
-                      </span>
-                      <span className="text-gray-400 text-sm">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-300">
-                      {log.action} {log.type}: {log.target}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          <Card variant="elevated" className="h-full">
+            <h3 className="text-lg font-semibold text-white mb-4">Ellis Radio</h3>
+            <div className="rounded-lg overflow-hidden">
+              <iframe
+                src="/radio-player.html"
+                className="w-full h-64 border-0"
+                allow="autoplay"
+                title="Ellis Radio Player"
+              ></iframe>
             </div>
           </Card>
         </div>
-
         {/* Quick Links */}
         <div>
           <Card variant="elevated">

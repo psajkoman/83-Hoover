@@ -87,7 +87,11 @@ export default function StartWarModal({ onClose, onSuccess, mode = 'admin' }: St
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gang-secondary border border-gray-700 rounded-lg max-w-2xl w-full my-8">
+      <div className="bg-gang-secondary border border-gray-700 rounded-lg max-w-2xl w-full my-8 shadow-2xl" style={{
+        background: 'linear-gradient(145deg, #1a1a1a 0%, #0d0d0d 100%)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
         <div className="sticky top-0 bg-gang-secondary border-b border-gray-700 p-6 flex items-center justify-between">
           <h3 className="text-2xl font-bold text-white">Start New War</h3>
           <button
