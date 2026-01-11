@@ -627,9 +627,9 @@ export async function updateWarInDiscord(messageId: string, war: CurrentWarEmbed
 }
 
 export async function deleteWarFromDiscord(messageId: string): Promise<boolean> {
-  const webhookUrl = process.env.DISCORD_WAR_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_CURRENT_WARS_WEBHOOK;
   if (!webhookUrl) {
-    console.error('DISCORD_WAR_WEBHOOK_URL is not set');
+    console.error('DISCORD_CURRENT_WARS_WEBHOOK is not set');
     return false;
   }
 
