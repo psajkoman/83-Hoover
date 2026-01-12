@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User, Swords } from 'lucide-react'
+import { Home, Map, Image as ImageIcon, Shield, Menu, X, LogOut, User, Swords, Calendar } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 import Button from '../ui/Button'
 import Image from 'next/image'
@@ -25,6 +25,7 @@ export default function Navbar() {
   const navItems = [
     { href: '/', label: 'Feed', icon: Home },
     { href: '/wars', label: 'Wars', icon: Swords },
+    { href: '/leaves', label: 'Leaves', icon: Calendar },
     { href: '/turf', label: 'Turf Map', icon: Map },
     { href: '/roster', label: 'Roster', icon: User },
     { href: '/media', label: 'Media', icon: ImageIcon },

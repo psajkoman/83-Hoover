@@ -268,6 +268,75 @@ export type Database = {
         }
         Relationships: []
       }
+      leaves: {
+        Row: {
+          admin_override: boolean
+          created_at: string | null
+          created_by: string | null
+          created_by_discord_id: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          end_date: string
+          id: string
+          note: string | null
+          requested_for_discord_id: string | null
+          requested_for_name: string
+          start_date: string
+          status: Database["public"]["Enums"]["leave_status"]
+          updated_at: string | null
+        }
+        Insert: {
+          admin_override?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          created_by_discord_id?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          end_date: string
+          id?: string
+          note?: string | null
+          requested_for_discord_id?: string | null
+          requested_for_name: string
+          start_date: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          updated_at?: string | null
+        }
+        Update: {
+          admin_override?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          created_by_discord_id?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          end_date?: string
+          id?: string
+          note?: string | null
+          requested_for_discord_id?: string | null
+          requested_for_name?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaves_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leaves_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logs: {
         Row: {
           author_id: string | null
@@ -752,6 +821,7 @@ export type Database = {
         | "PARTY"
         | "TRAINING"
         | "OTHER"
+      leave_status: "PENDING" | "APPROVED" | "DENIED" | "AUTO_DENIED"
       log_type:
         | "TURF_WAR"
         | "ROBBERY"
@@ -907,6 +977,7 @@ export const Constants = {
         "TRAINING",
         "OTHER",
       ],
+      leave_status: ["PENDING", "APPROVED", "DENIED", "AUTO_DENIED"],
       log_type: [
         "TURF_WAR",
         "ROBBERY",

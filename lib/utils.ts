@@ -5,14 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDate(date: Date | string): string {
+export function formatDate(date: Date | string, options?: { use24Hour?: boolean; useServerTime?: boolean }): string {
   const d = new Date(date)
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: !options?.use24Hour,
+    timeZone: options?.useServerTime ? 'Europe/London' : undefined
   }).format(d)
 }
 

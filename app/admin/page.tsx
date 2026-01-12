@@ -1,10 +1,32 @@
+// Core Next.js and React imports
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+
+// Type definitions
 import { Database } from '@/types/supabase'
-import Image from 'next/image'
+
+// Date utilities
 import { format, formatDistanceToNow } from 'date-fns'
+
+// Authentication
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+// Discord utilities
 import { getGuildMembers } from '@/lib/discord'
+
+// UI Components
+import Card from '@/components/ui/Card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+
+// Icons
+import { Users as UsersIcon, FileText, MapPin, Settings, UserPlus, LogOut } from 'lucide-react'
+
+// Admin components
+import DiscordMembersList from '@/components/admin/DiscordMembersList'
+import WarManagement from '@/components/admin/WarManagement'
 import { RecentVisits } from '@/components/admin/RecentVisits'
 
 // Helper function to get text color based on background color
@@ -25,13 +47,9 @@ const getTextColor = (bgColor: string): string => {
 
 type User = Database['public']['Tables']['users']['Row']
 type LoginHistory = Database['public']['Tables']['login_history']['Row']
-import Card from '@/components/ui/Card'
-import { Users, FileText, MapPin, Settings, UserPlus, LogOut } from 'lucide-react'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import DiscordMembersList from '@/components/admin/DiscordMembersList'
-import WarManagement from '@/components/admin/WarManagement'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+type Leave = Database['public']['Tables']['leaves']['Row']
+
+// Type definitions
 
 
 export default async function AdminPage() {
@@ -49,6 +67,18 @@ export default async function AdminPage() {
     .eq('discord_id', (session.user as any).discordId)
     .single() as { data: User | null }
 
+  // Check if user has admin role
+  if (!user || !['ADMIN', 'LEADER', 'MODERATOR'].includes(user.role || '')) {
+    redirect('/')
+  }
+
+  // Fetch pending leaves
+  const { data: pendingLeaves } = await supabase
+    .from('leaves')
+    .select('*')
+    .eq('status', 'PENDING')
+    .order('created_at', { ascending: true }) as { data: Leave[] | null }
+
   if (!user || (user.role !== 'ADMIN' && user.role !== 'LEADER' && user.role !== 'MODERATOR')) {
     redirect('/')
   }
@@ -57,7 +87,7 @@ export default async function AdminPage() {
   let currentMemberIds: Set<string> = new Set();
   try {
     const members = await getGuildMembers();
-    members.forEach(member => {
+    members.forEach((member: any) => {
       if (member.user?.id) {
         currentMemberIds.add(member.user.id);
       }
@@ -180,10 +210,89 @@ export default async function AdminPage() {
         </p>
       </div>
 
+      {/* Leave Approvals Section */}
+      <Card variant="elevated" className="mb-8">
+        <div className="mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Leave Approvals</h2>
+              <p className="text-gray-400 text-sm mt-1">Review and manage pending leave requests.</p>
+            </div>
+            {pendingLeaves && pendingLeaves.length > 0 && (
+              <Link
+                href="/leaves/pending"
+                className="text-sm font-medium text-gang-accent hover:text-gang-accent/80 transition-colors"
+              >
+                View All Pending
+              </Link>
+            )}
+          </div>
+        </div>
+        
+        {pendingLeaves?.length === 0 ? (
+          <div className="py-6 text-center text-gray-400">No pending leave requests.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-left py-3 px-4">Member</TableHead>
+                  <TableHead className="text-left py-3 px-4">Dates</TableHead>
+                  <TableHead className="text-left py-3 px-4">Status</TableHead>
+                  <TableHead className="text-left py-3 px-4">Created</TableHead>
+                  <TableHead className="text-right py-3 px-4">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingLeaves?.slice(0, 5).map((leave) => (
+                  <TableRow key={leave.id} className="border-white/10 hover:bg-white/5 transition-colors">
+                    <TableCell className="py-3 px-4">
+                      <div className="font-medium text-white">{leave.requested_for_name}</div>
+                      {leave.requested_for_discord_id && (
+                        <div className="text-xs text-gray-400">Discord-linked</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-3 px-4">
+                      {format(new Date(leave.start_date), 'd MMM yyyy')} → {format(new Date(leave.end_date), 'd MMM yyyy')}
+                    </TableCell>
+                    <TableCell className="py-3 px-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900 text-yellow-200">
+                        Pending
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3 px-4 text-gray-300">
+                      {leave.created_at ? format(new Date(leave.created_at), 'd MMM yyyy') : '—'}
+                    </TableCell>
+                    <TableCell className="py-3 px-4 text-right">
+                      <Link
+                        href={`/leaves/${leave.id}`}
+                        className="text-sm font-medium text-gang-accent hover:text-gang-accent/80 transition-colors"
+                      >
+                        Review
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {pendingLeaves && pendingLeaves.length > 5 && (
+              <div className="px-4 py-3 text-center border-t border-white/10">
+                <Link
+                  href="/leaves/pending"
+                  className="text-sm font-medium text-gang-accent hover:text-gang-accent/80 transition-colors"
+                >
+                  View all {pendingLeaves.length} pending requests
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="text-center">
-          <Users className="w-8 h-8 mx-auto mb-2 text-gang-highlight" />
+          <UsersIcon className="w-8 h-8 mx-auto mb-2 text-gang-highlight" />
           <div className="text-3xl font-bold text-white mb-1">{totalUsers}</div>
           <div className="text-sm text-gray-400">All Time Members</div>
         </Card>
@@ -247,7 +356,7 @@ export default async function AdminPage() {
           {loginHistory.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center mb-3">
-                <Users className="w-8 h-8 text-gray-500" />
+                <UsersIcon className="w-8 h-8 text-gray-500" />
               </div>
               <p className="text-gray-400">No recent visits found</p>
               <p className="text-sm text-gray-500 mt-1">User activity will appear here</p>

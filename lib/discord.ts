@@ -294,6 +294,243 @@ const payload: DiscordWebhookPayload = {
 return { webhookUrl, payload };
 }
 
+export async function sendLeaveNotificationToDiscord(
+  type: 'SUBMITTED' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED',
+  leaveData: {
+    id: string;
+    requested_for_name: string;
+    requested_for_discord_id?: string | null;
+    start_date: string;
+    end_date: string;
+    note?: string | null;
+    status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED';
+    created_at?: string | null;
+    decided_by?: string | null;
+    decided_at?: string | null;
+    decision_note?: string | null;
+    created_by?: {
+      username: string;
+      displayName?: string;
+      avatar?: string;
+      discordId?: string;
+    };
+  }
+): Promise<DiscordWebhookSendResult> {
+  try {
+    // Get the appropriate webhook URL based on notification type
+    // Only send to #leave-of-absence for approved leaves
+    const webhookUrl = type === 'SUBMITTED' 
+      ? process.env.DISCORD_HIGH_COUNCIL_WEBHOOK 
+      : type === 'APPROVED' 
+      ? process.env.DISCORD_LEAVE_OF_ABSENCE_WEBHOOK
+      : null; // Don't send denied/auto-denied leaves to any channel
+    
+    if (!webhookUrl) {
+      // Only log error if webhook is expected but missing
+      if (type === 'SUBMITTED' || type === 'APPROVED') {
+        const errorMsg = `No webhook URL configured for ${type} leave notifications`;
+        console.error(`[ERROR] ${errorMsg}`);
+        return { ok: false, error: errorMsg };
+      }
+      // For denied/auto-denied leaves, silently return success
+      return { ok: true, messageId: 'skipped' };
+    }
+        
+    const { payload } = buildLeaveNotificationPayload(type, leaveData);
+    const res = await sendToDiscordWebhook(webhookUrl, payload);
+    
+    if (!res.ok) {
+      console.error(`Failed to send ${type} leave notification to Discord:`, res.error || 'Unknown error');
+    } else {
+      console.log(`Successfully sent ${type} leave notification to Discord`);
+    }
+    
+    return res;
+  } catch (error) {
+    const errorMsg = `Error in sendLeaveNotificationToDiscord (${type}): ${error instanceof Error ? error.message : String(error)}`;
+    console.error(errorMsg);
+    console.error('Error details:', error);
+    return { ok: false, error: errorMsg };
+  }
+}
+
+export function buildLeaveNotificationPayload(
+  type: 'SUBMITTED' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED',
+  leaveData: {
+    id: string;
+    requested_for_name: string;
+    requested_for_discord_id?: string | null;
+    start_date: string;
+    end_date: string;
+    note?: string | null;
+    status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED';
+    created_at?: string | null;
+    decided_by?: string | null;
+    decided_at?: string | null;
+    decision_note?: string | null;
+    created_by?: {
+      username: string;
+      displayName?: string;
+      avatar?: string;
+      discordId?: string;
+    };
+  }
+): { webhookUrl: string; payload: DiscordWebhookPayload } {
+  const webhookUrl = type === 'SUBMITTED'
+    ? process.env.DISCORD_HIGH_COUNCIL_WEBHOOK
+    : type === 'APPROVED'
+    ? process.env.DISCORD_LEAVE_OF_ABSENCE_WEBHOOK
+    : null;
+
+  if (!webhookUrl) {
+    // For denied/auto-denied leaves, we don't need a webhook
+    if (type === 'DENIED' || type === 'AUTO_DENIED') {
+      throw new Error(`No Discord notification will be sent for ${type} leaves`);
+    }
+    throw new Error(`No webhook URL configured for ${type} leave notifications`);
+  }
+
+  const colors = {
+    SUBMITTED: 0xf59e0b, // Yellow/amber
+    APPROVED: 0x10b981, // Green
+    DENIED: 0xef4444, // Red
+    AUTO_DENIED: 0xf97316, // Orange
+  };
+
+  const color = colors[type] || 0x6b7280; // Gray as fallback
+  
+  const formatTime = (date: string) => {
+    return formatServerTime(date).replace(' at ', ' ');
+  };
+
+  const leaveUrl = `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'}/leaves/${leaveData.id}`;
+
+  let title = '';
+  let description = '';
+  let fields: Array<{ name: string; value: string; inline?: boolean }> = [];
+
+  switch (type) {
+    case 'SUBMITTED':
+      title = '📝 Leave Request Submitted';
+      description = `A new leave request has been submitted and is pending review by High Council.`;
+      fields = [
+        {
+          name: "`MEMBER`",
+          value: leaveData.requested_for_name,
+          inline: true
+        },
+        {
+          name: "`DATES`",
+          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
+          inline: true
+        },
+        {
+          name: "`SUBMITTED BY`",
+          value: leaveData.created_by?.displayName || leaveData.created_by?.username || 'Unknown',
+          inline: true
+        }
+      ];
+      break;
+
+    case 'APPROVED':
+      title = 'Leave of Absence Posted';
+      description = `A new leave of absence has been posted.`;
+      fields = [
+        {
+          name: "`MEMBER`",
+          value: leaveData.requested_for_name,
+          inline: true
+        },
+        {
+          name: "`DATES`",
+          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
+          inline: true
+        },
+        {
+          name: "`APPROVED BY`",
+          value: leaveData.decided_by || 'Unknown',
+          inline: true
+        }
+      ];
+      break;
+
+    case 'DENIED':
+      title = 'Leave Request Denied';
+      description = `The leave request has been denied.`;
+      fields = [
+        {
+          name: "`MEMBER`",
+          value: leaveData.requested_for_name,
+          inline: true
+        },
+        {
+          name: "`DATES`",
+          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
+          inline: true
+        },
+        {
+          name: "`DENIED BY`",
+          value: leaveData.decided_by || 'Unknown',
+          inline: true
+        }
+      ];
+      break;
+
+    case 'AUTO_DENIED':
+      title = '⚠️ Leave Request Auto-Denied';
+      description = `The leave request has been automatically denied due to inactivity.`;
+      fields = [
+        {
+          name: "`MEMBER`",
+          value: leaveData.requested_for_name,
+          inline: true
+        },
+        {
+          name: "`DATES`",
+          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
+          inline: true
+        }
+      ];
+      break;
+  }
+
+  // Add notes if present
+  if (leaveData.note) {
+    fields.push({
+      name: "`NOTES`",
+      value: leaveData.note,
+      inline: false
+    });
+  }
+
+  // Add decision note for denied/approved leaves
+  if ((type === 'APPROVED' || type === 'DENIED' || type === 'AUTO_DENIED') && leaveData.decision_note) {
+    fields.push({
+      name: "`DECISION NOTE`",
+      value: leaveData.decision_note,
+      inline: false
+    });
+  }
+
+  const payload: DiscordWebhookPayload = {
+    embeds: [{
+      title,
+      url: leaveUrl,
+      description,
+      color,
+      fields,
+      timestamp: type === 'SUBMITTED' && leaveData.created_at 
+        ? new Date(leaveData.created_at).toISOString()
+        : (leaveData.decided_at ? new Date(leaveData.decided_at).toISOString() : new Date().toISOString()),
+      footer: {
+        text: type === 'SUBMITTED' ? 'Leave Management System' : 'Leave of Absence'
+      }
+    }]
+  };
+
+  return { webhookUrl, payload };
+}
+
 export async function sendEncounterLogToDiscord(
   type: 'ATTACK' | 'DEFENSE',
   logData: {
