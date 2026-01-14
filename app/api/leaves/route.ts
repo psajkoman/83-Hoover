@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { sendLeaveNotificationToDiscord, resolveDiscordAuthor } from '@/lib/discord'
+import { sendLeaveNotificationToDiscord, resolveDiscordAuthor, updateDiscordNickname } from '@/lib/discord'
 
 const MAX_LEAVE_DAYS = 30
 
@@ -61,19 +61,46 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const scope = searchParams.get('scope') || 'my'
+    const scope = searchParams.get('scope') || 'default'
 
     let query = supabaseAdmin
       .from('leaves')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (scope === 'pending') {
+    if (scope === 'all') {
+      // Show all leaves for admins
       if (!isAdminRole(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      query = query.eq('status', 'PENDING')
-    } else if (scope === 'all') {
+    } else if (scope === 'pending') {
+      // Legacy page: treat pending as "active/away" leaves (admin-only)
       if (!isAdminRole(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      query = query.eq('status', 'AWAY')
+    } else if (scope === 'my') {
+      // For 'my' scope, show leaves where the user is the requested_for
+      const { data: userProfile } = await supabaseAdmin
+        .from('users')
+        .select('discord_id')
+        .eq('id', user.id)
+        .single()
+      
+      if (userProfile?.discord_id) {
+        query = query.eq('requested_for_discord_id', userProfile.discord_id)
+      } else {
+        // Fallback to name matching if no Discord ID is found
+        const { data: userData } = await supabaseAdmin
+          .from('users')
+          .select('username')
+          .eq('id', user.id)
+          .single()
+        
+        if (userData?.username) {
+          query = query.eq('requested_for_name', userData.username)
+        } else {
+          return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
+        }
+      }
     } else {
+      // Default case: only show leaves created by the current user
       query = query.eq('created_by', user.id)
     }
 
@@ -166,14 +193,14 @@ export async function POST(request: NextRequest) {
             start_date,
             end_date,
             note,
-            status: 'AUTO_DENIED',
+            status: 'DENIED',
             created_by: creator.id,
             created_by_discord_id: creator.discord_id || null,
             decided_at: new Date().toISOString(),
             decided_by: null,
             decision_note: 'Auto-denied: user is inactive',
             admin_override,
-          })
+          } as any) // Type assertion for status
           .select('*')
           .single()
 
@@ -181,21 +208,53 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to create leave' }, { status: 500 })
         }
 
-        // Send Discord notification for auto-denied leave
+        // Update Discord nickname and send notification for new leave
         try {
           const creatorInfo = await resolveDiscordAuthor(creator.discord_id || undefined, session.user?.name || 'Unknown')
           
-          const result = await sendLeaveNotificationToDiscord('AUTO_DENIED', {
+          // Update Discord nickname if the user has a Discord ID
+          if (requested_for_discord_id) {
+            try {
+              // Get the user's current display name from the database
+              const { data: user, error: userError } = await supabaseAdmin
+                .from('users')
+                .select('display_name')
+                .eq('discord_id', requested_for_discord_id)
+                .single()
+
+              if (!userError && user?.display_name) {
+                // Only update if [LOA] is not already in the name
+                if (!user.display_name.includes('[LOA]')) {
+                  // Add [LOA] to the display name
+                  const newNickname = `${user.display_name} [LOA]`.trim()
+                  const success = await updateDiscordNickname(requested_for_discord_id, newNickname)
+                  
+                  // Update the display name in the database if Discord update was successful
+                  if (success) {
+                    await supabaseAdmin
+                      .from('users')
+                      .update({ display_name: newNickname })
+                      .eq('discord_id', requested_for_discord_id)
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Failed to update Discord nickname:', error)
+              // Continue even if nickname update fails
+            }
+          }
+          
+          const result = await sendLeaveNotificationToDiscord('DENIED', {
             id: leave.id,
-            requested_for_name: leave.requested_for_name,
-            requested_for_discord_id: leave.requested_for_discord_id,
+            requested_for_name: leave.requested_for_name || '',
+            requested_for_discord_id: leave.requested_for_discord_id || null,
             start_date: leave.start_date,
             end_date: leave.end_date,
-            note: leave.note,
-            status: leave.status,
-            created_at: leave.created_at,
-            decided_at: leave.decided_at,
-            decision_note: leave.decision_note,
+            note: leave.note || null,
+            status: 'DENIED',
+            created_at: leave.created_at || null,
+            decided_at: leave.decided_at || null,
+            decision_note: leave.decision_note || 'Auto-denied: user is inactive',
             created_by: creatorInfo
           })
           
@@ -203,29 +262,128 @@ export async function POST(request: NextRequest) {
             console.error('Failed to send Discord notification for auto-denied leave:', result.error)
           }
         } catch (discordError) {
-          console.error('Failed to send Discord notification for auto-denied leave:', discordError)
-          // Don't fail the request if Discord notification fails
+          console.error('Failed to process Discord operations for auto-denied leave:', discordError)
+          // Don't fail the request if Discord operations fail
         }
 
         return NextResponse.json({ leave }, { status: 201 })
       }
 
-      const { data: approvedLeaves, error: approvedError } = await supabaseAdmin
+      // Check for overlapping active leaves
+      if (requested_for_discord_id) {
+        const { data: activeLeaves, error: activeLeavesError } = await supabaseAdmin
+          .from('leaves')
+          .select('id, start_date, end_date')
+          .eq('requested_for_discord_id', requested_for_discord_id)
+          .eq('status', 'AWAY')
+          .or(`start_date.lte.${end_date},end_date.gte.${start_date}`);
+
+        if (activeLeavesError) {
+          console.error('Error checking for overlapping leaves:', activeLeavesError);
+          return NextResponse.json({ error: 'Failed to validate overlapping leaves' }, { status: 500 });
+        }
+
+        const hasOverlap = (activeLeaves || []).some((l) => 
+          overlaps(start_date, end_date, l.start_date, l.end_date)
+        );
+        
+        if (hasOverlap) {
+          return NextResponse.json({ 
+            error: 'This user already has an overlapping active leave' 
+          }, { status: 409 });
+        }
+      }
+
+      // Create leave with AWAY status (auto-approved)
+      const { data: leave, error } = await supabaseAdmin
         .from('leaves')
-        .select('id, start_date, end_date')
-        .eq('requested_for_discord_id', requested_for_discord_id)
-        .eq('status', 'APPROVED')
+        .insert({
+          requested_for_name,
+          requested_for_discord_id,
+          start_date: start_date,
+          end_date: end_date,
+          note,
+          status: 'AWAY',
+          created_by: creator.id,
+          created_by_discord_id: creator.discord_id || null,
+          admin_override: admin_override && isAdminRole(creator.role),
+          decided_by: creator.id, // Set the creator as the decider
+          decided_at: new Date().toISOString(), // Set the creation time
+          decision_note: 'Automatically created as AWAY' // Add a note
+        } as any) // Type assertion to handle the status type
+        .select()
+        .single()
 
-      if (approvedError) {
-        return NextResponse.json({ error: 'Failed to validate overlapping leaves' }, { status: 500 })
+      if (error || !leave) {
+        console.error('Error creating leave:', error)
+        return NextResponse.json({ error: 'Failed to create leave' }, { status: 500 })
       }
 
-      const hasOverlap = (approvedLeaves || []).some((l) => overlaps(start_date, end_date, l.start_date, l.end_date))
-      if (hasOverlap) {
-        return NextResponse.json({ error: 'This user already has an overlapping approved leave' }, { status: 409 })
+      // Send Discord notification for new leave and update nickname
+      try {
+        const creatorInfo = await resolveDiscordAuthor(creator.discord_id || undefined, session.user?.name || 'Unknown')
+
+        // Update Discord nickname if the user has a Discord ID
+        if (leave.requested_for_discord_id) {
+          try {
+            // Get the user's current display name from the database
+            const { data: user, error: userError } = await supabaseAdmin
+              .from('users')
+              .select('display_name')
+              .eq('discord_id', leave.requested_for_discord_id)
+              .single();
+
+            if (!userError && user?.display_name && !user.display_name.includes('[LOA]')) {
+              const newNickname = `${user.display_name} [LOA]`.trim();
+              const success = await updateDiscordNickname(leave.requested_for_discord_id, newNickname);
+              
+              if (success) {
+                // Update the display name in the database
+                await supabaseAdmin
+                  .from('users')
+                  .update({ display_name: newNickname })
+                  .eq('discord_id', leave.requested_for_discord_id);
+              }
+            }
+          } catch (error) {
+            console.error('[LOA] Failed to update Discord nickname:', error)
+            // Continue even if nickname update fails
+          }
+        }
+
+        const discordResult = await sendLeaveNotificationToDiscord('AWAY', {
+          id: leave.id,
+          requested_for_name: leave.requested_for_name,
+          requested_for_discord_id: leave.requested_for_discord_id || null,
+          start_date: leave.start_date,
+          end_date: leave.end_date,
+          note: leave.note || null,
+          status: 'AWAY',
+          created_at: leave.created_at || null,
+          decided_by: creatorInfo.displayName || creatorInfo.username || null,
+          decided_at: leave.decided_at || null,
+          decision_note: 'Automatically created',
+          created_by: creatorInfo
+        })
+
+        if (discordResult?.ok && discordResult.messageId && discordResult.messageId !== 'skipped') {
+          await supabaseAdmin
+            .from('leaves')
+            .update({
+              discord_message_id: discordResult.messageId,
+              discord_channel_id: discordResult.channelId || null,
+            } as any)
+            .eq('id', leave.id)
+        }
+      } catch (discordError) {
+        console.error('Failed to send Discord notification for submitted leave:', discordError)
+        // Don't fail the request if Discord notification fails
       }
+
+      return NextResponse.json({ leave }, { status: 201 })
     }
 
+    // Create leave with AWAY status (auto-approved)
     const { data: leave, error } = await supabaseAdmin
       .from('leaves')
       .insert({
@@ -234,11 +392,14 @@ export async function POST(request: NextRequest) {
         start_date: start_date,
         end_date: end_date,
         note,
-        status: 'PENDING',
+        status: 'AWAY',
         created_by: creator.id,
         created_by_discord_id: creator.discord_id || null,
         admin_override: admin_override && isAdminRole(creator.role),
-      })
+        decided_by: creator.id, // Set the creator as the decider
+        decided_at: new Date().toISOString(), // Set the creation time
+        decision_note: 'Automatically created as AWAY' // Add a note
+      } as any) // Type assertion to handle the status type
       .select()
       .single()
 
@@ -247,22 +408,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create leave' }, { status: 500 })
     }
 
-    // Send Discord notification for submitted leave
+    // Update Discord nickname and send notification for new leave
     try {
-      // Get the creator's Discord display name
       const creatorInfo = await resolveDiscordAuthor(creator.discord_id || undefined, session.user?.name || 'Unknown')
-      
-      await sendLeaveNotificationToDiscord('SUBMITTED', {
+
+      // Update Discord nickname if the user has a Discord ID
+      if (requested_for_discord_id) {
+        try {
+          // Get the user's current display name from the database
+          const { data: user, error: userError } = await supabaseAdmin
+            .from('users')
+            .select('display_name')
+            .eq('discord_id', requested_for_discord_id)
+            .single();
+
+          if (!userError && user?.display_name && !user.display_name.includes('[LOA]')) {
+            const newNickname = `${user.display_name} [LOA]`.trim();
+            const success = await updateDiscordNickname(requested_for_discord_id, newNickname);
+            
+            if (success) {
+              // Update the display name in the database
+              await supabaseAdmin
+                .from('users')
+                .update({ display_name: newNickname })
+                .eq('discord_id', requested_for_discord_id);
+            }
+          }
+        } catch (error) {
+          console.error('[LOA] Failed to update Discord nickname:', error)
+          // Continue even if nickname update fails
+        }
+      }
+
+      const discordResult = await sendLeaveNotificationToDiscord('AWAY', {
         id: leave.id,
         requested_for_name: leave.requested_for_name,
-        requested_for_discord_id: leave.requested_for_discord_id,
+        requested_for_discord_id: leave.requested_for_discord_id || null,
         start_date: leave.start_date,
         end_date: leave.end_date,
-        note: leave.note,
-        status: leave.status,
-        created_at: leave.created_at,
+        note: leave.note || null,
+        status: 'AWAY',
+        created_at: leave.created_at || null,
+        decided_by: creatorInfo.displayName || creatorInfo.username || null,
+        decided_at: leave.decided_at || null,
+        decision_note: 'Automatically created',
         created_by: creatorInfo
       })
+
+      if (discordResult?.ok && discordResult.messageId && discordResult.messageId !== 'skipped') {
+        await supabaseAdmin
+          .from('leaves')
+          .update({
+            discord_message_id: discordResult.messageId,
+            discord_channel_id: discordResult.channelId || null,
+          } as any)
+          .eq('id', leave.id)
+      }
     } catch (discordError) {
       console.error('Failed to send Discord notification for submitted leave:', discordError)
       // Don't fail the request if Discord notification fails

@@ -41,6 +41,7 @@ To display Discord server members in the admin dashboard, you need to create a D
    - ✅ **Read Messages/View Channels**
    - ✅ **View Server Insights**
    - ✅ **Manage Server** (Required for member list!)
+   - ✅ **Manage Nicknames** (Required for [LOA] tag functionality!)
    - ✅ **Read Message History**
 
 4. **Copy the Generated URL:**
@@ -86,6 +87,27 @@ DISCORD_GUILD_ID=your_server_id_here
 
 ---
 
+## 🏷️ [LOA] Tag Functionality
+
+The bot automatically adds and removes `[LOA]` tags from member nicknames:
+
+### What it does:
+- ✅ **Adds [LOA]** when a leave of absence is submitted
+- ✅ **Removes [LOA]** when a leave is ended/returned
+- ✅ **Updates both Discord nickname and database display name**
+
+### Requirements:
+- ✅ **Manage Nicknames** permission (must be selected in OAuth2)
+- ✅ **DISCORD_BOT_TOKEN** environment variable
+- ✅ **DISCORD_GUILD_ID** environment variable
+
+### How it works:
+1. When a leave is submitted → Bot adds `[LOA]` to the user's nickname
+2. When a leave ends → Bot removes `[LOA]` from the user's nickname
+3. Changes are synchronized between Discord and your database
+
+---
+
 ## ✅ Test It
 
 1. **Sign in as Admin**
@@ -125,6 +147,18 @@ The list will show:
 ### "Forbidden" error
 - Make sure you're signed in
 - Verify your role is ADMIN, LEADER, or MODERATOR in Supabase
+
+### "[LOA] tag not adding/removing"
+- Make sure **Manage Nicknames** permission is enabled in Discord
+- Verify `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID` are set correctly
+- Check the bot has a role that's above all member roles in Discord
+- Ensure the bot is not being rate-limited by Discord
+
+### "Failed to update Discord nickname" in logs
+- Check if the bot has "Manage Nicknames" permission
+- Verify the target user is in the server
+- Check if the bot's role is higher than the target user's role
+- Look for rate limiting (Discord limits nickname changes)
 
 ---
 

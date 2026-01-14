@@ -821,7 +821,7 @@ export type Database = {
         | "PARTY"
         | "TRAINING"
         | "OTHER"
-      leave_status: "PENDING" | "APPROVED" | "DENIED" | "AUTO_DENIED"
+      leave_status: "AWAY" | "RETURNED" | "DENIED"
       log_type:
         | "TURF_WAR"
         | "ROBBERY"
@@ -977,7 +977,7 @@ export const Constants = {
         "TRAINING",
         "OTHER",
       ],
-      leave_status: ["PENDING", "APPROVED", "DENIED", "AUTO_DENIED"],
+      leave_status: ["AWAY", "RETURNED", "DENIED"],
       log_type: [
         "TURF_WAR",
         "ROBBERY",

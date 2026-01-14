@@ -14,7 +14,7 @@ type LeaveRow = {
   start_date: string
   end_date: string
   note: string | null
-  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED'
+  status: 'AWAY' | 'DENIED' | 'RETURNED'
   created_at: string | null
 }
 

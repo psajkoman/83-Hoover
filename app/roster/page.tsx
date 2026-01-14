@@ -191,7 +191,7 @@ export default function RosterPage() {
               
               const memberRoles = (member.roles || [])
                 .map(roleId => getRoleById(roleId))
-                .filter((role): role is DiscordRole => role !== undefined)
+                .filter((role): role is DiscordRole => role !== undefined && !role.name.toLowerCase().includes('notify'))
                 .sort((a, b) => b.position - a.position);
                 
               const highestRole = memberRoles[0] || { 

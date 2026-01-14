@@ -2,11 +2,13 @@
 import { formatServerTime } from './dateUtils';
 import { getToken } from 'next-auth/jwt';
 import { NextRequest } from 'next/server';
+
 interface DiscordWebhookPayload {
   content?: string;
   embeds?: Array<{
     title?: string;
     url?: string;
+
     description?: string;
     color?: number;
     fields?: Array<{ name: string; value: string; inline?: boolean }>;
@@ -295,7 +297,7 @@ return { webhookUrl, payload };
 }
 
 export async function sendLeaveNotificationToDiscord(
-  type: 'SUBMITTED' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED',
+  type: 'AWAY' | 'DENIED' | 'RETURNED',
   leaveData: {
     id: string;
     requested_for_name: string;
@@ -303,11 +305,13 @@ export async function sendLeaveNotificationToDiscord(
     start_date: string;
     end_date: string;
     note?: string | null;
-    status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED';
+    status: 'AWAY' | 'DENIED' | 'RETURNED';
     created_at?: string | null;
     decided_by?: string | null;
     decided_at?: string | null;
     decision_note?: string | null;
+    discord_message_id?: string | null;
+    discord_channel_id?: string | null;
     created_by?: {
       username: string;
       displayName?: string;
@@ -317,213 +321,122 @@ export async function sendLeaveNotificationToDiscord(
   }
 ): Promise<DiscordWebhookSendResult> {
   try {
-    // Get the appropriate webhook URL based on notification type
-    // Only send to #leave-of-absence for approved leaves
-    const webhookUrl = type === 'SUBMITTED' 
-      ? process.env.DISCORD_HIGH_COUNCIL_WEBHOOK 
-      : type === 'APPROVED' 
-      ? process.env.DISCORD_LEAVE_OF_ABSENCE_WEBHOOK
-      : null; // Don't send denied/auto-denied leaves to any channel
+    const webhookUrl = process.env.DISCORD_LEAVE_OF_ABSENCE_WEBHOOK;
     
     if (!webhookUrl) {
-      // Only log error if webhook is expected but missing
-      if (type === 'SUBMITTED' || type === 'APPROVED') {
-        const errorMsg = `No webhook URL configured for ${type} leave notifications`;
-        console.error(`[ERROR] ${errorMsg}`);
-        return { ok: false, error: errorMsg };
+      const errorMsg = 'No webhook URL configured for leave notifications';
+      console.error(`[ERROR] ${errorMsg}`);
+      return { ok: false, error: errorMsg };
+    }
+    
+    // Handle RETURNED status - delete the message if it exists
+    if (type === 'RETURNED' && leaveData.discord_message_id) {
+      const success = await deleteDiscordWebhookMessage(webhookUrl, leaveData.discord_message_id);
+      if (success) {
+        console.log('Successfully deleted leave notification from Discord');
+        return { ok: true, messageId: 'deleted' };
+      } else {
+        console.error('Failed to delete leave notification from Discord');
+        return { ok: false, error: 'Failed to delete Discord message' };
       }
-      // For denied/auto-denied leaves, silently return success
+    }
+    
+    // For DENIED status, don't send any notification
+    if (type === 'DENIED') {
       return { ok: true, messageId: 'skipped' };
     }
-        
-    const { payload } = buildLeaveNotificationPayload(type, leaveData);
-    const res = await sendToDiscordWebhook(webhookUrl, payload);
     
-    if (!res.ok) {
-      console.error(`Failed to send ${type} leave notification to Discord:`, res.error || 'Unknown error');
-    } else {
-      console.log(`Successfully sent ${type} leave notification to Discord`);
+    // Only send notification for AWAY status
+    if (type === 'AWAY') {
+      const { payload } = buildLeaveNotificationPayload(type, leaveData);
+      
+      // If there's an existing message, update it (shouldn't normally happen for new AWAY status)
+      if (leaveData.discord_message_id && leaveData.discord_message_id !== 'skipped') {
+        const ok = await editDiscordWebhookMessage(webhookUrl, leaveData.discord_message_id, payload);
+        return ok 
+          ? { ok: true, messageId: leaveData.discord_message_id } 
+          : { ok: false, error: 'Failed to update Discord message' };
+      }
+      
+      // Otherwise, send a new message
+      const res = await sendToDiscordWebhook(webhookUrl, payload);
+      
+      if (!res.ok) {
+        console.error('Failed to send leave notification to Discord:', res.error || 'Unknown error');
+      } else {
+        console.log('Successfully sent leave notification to Discord');
+      }
+      
+      return res;
     }
     
-    return res;
+    // Shouldn't reach here, but just in case
+    return { ok: true, messageId: 'skipped' };
   } catch (error) {
     const errorMsg = `Error in sendLeaveNotificationToDiscord (${type}): ${error instanceof Error ? error.message : String(error)}`;
     console.error(errorMsg);
-    console.error('Error details:', error);
     return { ok: false, error: errorMsg };
   }
 }
 
 export function buildLeaveNotificationPayload(
-  type: 'SUBMITTED' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED',
+  type: 'AWAY',
   leaveData: {
     id: string;
     requested_for_name: string;
-    requested_for_discord_id?: string | null;
     start_date: string;
     end_date: string;
     note?: string | null;
-    status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED';
     created_at?: string | null;
-    decided_by?: string | null;
-    decided_at?: string | null;
-    decision_note?: string | null;
-    created_by?: {
-      username: string;
-      displayName?: string;
-      avatar?: string;
-      discordId?: string;
-    };
   }
 ): { webhookUrl: string; payload: DiscordWebhookPayload } {
-  const webhookUrl = type === 'SUBMITTED'
-    ? process.env.DISCORD_HIGH_COUNCIL_WEBHOOK
-    : type === 'APPROVED'
-    ? process.env.DISCORD_LEAVE_OF_ABSENCE_WEBHOOK
-    : null;
-
+  const webhookUrl = process.env.DISCORD_LEAVE_OF_ABSENCE_WEBHOOK;
+  
   if (!webhookUrl) {
-    // For denied/auto-denied leaves, we don't need a webhook
-    if (type === 'DENIED' || type === 'AUTO_DENIED') {
-      throw new Error(`No Discord notification will be sent for ${type} leaves`);
-    }
-    throw new Error(`No webhook URL configured for ${type} leave notifications`);
+    throw new Error('No webhook URL configured for leave notifications');
   }
 
-  const colors = {
-    SUBMITTED: 0xf59e0b, // Yellow/amber
-    APPROVED: 0x10b981, // Green
-    DENIED: 0xef4444, // Red
-    AUTO_DENIED: 0xf97316, // Orange
-  };
-
-  const color = colors[type] || 0x6b7280; // Gray as fallback
-  
   const formatTime = (date: string) => {
     return formatServerTime(date).replace(' at ', ' ');
   };
 
   const leaveUrl = `${process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'}/leaves/${leaveData.id}`;
 
-  let title = '';
-  let description = '';
-  let fields: Array<{ name: string; value: string; inline?: boolean }> = [];
+  // Calculate duration in days
+  const startDate = new Date(leaveData.start_date);
+  const endDate = new Date(leaveData.end_date);
+  const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-  switch (type) {
-    case 'SUBMITTED':
-      title = '📝 Leave Request Submitted';
-      description = `A new leave request has been submitted and is pending review by High Council.`;
-      fields = [
-        {
-          name: "`MEMBER`",
-          value: leaveData.requested_for_name,
-          inline: true
-        },
-        {
-          name: "`DATES`",
-          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
-          inline: true
-        },
-        {
-          name: "`SUBMITTED BY`",
-          value: leaveData.created_by?.displayName || leaveData.created_by?.username || 'Unknown',
-          inline: true
-        }
-      ];
-      break;
+  // Format the date as MMM DD, YYYY (e.g., Jan 22, 2026)
+  const formatDate = (date: Date): string => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month} ${day}, ${year}`;
+  };
 
-    case 'APPROVED':
-      title = 'Leave of Absence Posted';
-      description = `A new leave of absence has been posted.`;
-      fields = [
-        {
-          name: "`MEMBER`",
-          value: leaveData.requested_for_name,
-          inline: true
-        },
-        {
-          name: "`DATES`",
-          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
-          inline: true
-        },
-        {
-          name: "`APPROVED BY`",
-          value: leaveData.decided_by || 'Unknown',
-          inline: true
-        }
-      ];
-      break;
-
-    case 'DENIED':
-      title = 'Leave Request Denied';
-      description = `The leave request has been denied.`;
-      fields = [
-        {
-          name: "`MEMBER`",
-          value: leaveData.requested_for_name,
-          inline: true
-        },
-        {
-          name: "`DATES`",
-          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
-          inline: true
-        },
-        {
-          name: "`DENIED BY`",
-          value: leaveData.decided_by || 'Unknown',
-          inline: true
-        }
-      ];
-      break;
-
-    case 'AUTO_DENIED':
-      title = '⚠️ Leave Request Auto-Denied';
-      description = `The leave request has been automatically denied due to inactivity.`;
-      fields = [
-        {
-          name: "`MEMBER`",
-          value: leaveData.requested_for_name,
-          inline: true
-        },
-        {
-          name: "`DATES`",
-          value: `${formatTime(leaveData.start_date)} → ${formatTime(leaveData.end_date)}`,
-          inline: true
-        }
-      ];
-      break;
-  }
-
+  // Build the description with exact formatting
+  let description = `A new leave of absence has been posted\n\n`;
+  description += `MEMBER: ${leaveData.requested_for_name.toUpperCase()}\n`;
+  description += `RETURNING: ${formatDate(endDate)}\n`;
+  description += `DURATION: ${durationDays} day${durationDays !== 1 ? 's' : ''}`;
+  
   // Add notes if present
   if (leaveData.note) {
-    fields.push({
-      name: "`NOTES`",
-      value: leaveData.note,
-      inline: false
-    });
-  }
-
-  // Add decision note for denied/approved leaves
-  if ((type === 'APPROVED' || type === 'DENIED' || type === 'AUTO_DENIED') && leaveData.decision_note) {
-    fields.push({
-      name: "`DECISION NOTE`",
-      value: leaveData.decision_note,
-      inline: false
-    });
+    description += `\n\nNOTES: ${leaveData.note}`;
   }
 
   const payload: DiscordWebhookPayload = {
     embeds: [{
-      title,
-      url: leaveUrl,
-      description,
-      color,
-      fields,
-      timestamp: type === 'SUBMITTED' && leaveData.created_at 
-        ? new Date(leaveData.created_at).toISOString()
-        : (leaveData.decided_at ? new Date(leaveData.decided_at).toISOString() : new Date().toISOString()),
+      description: description,
+      color: 0x10b981, // Green color for AWAY status
+      timestamp: leaveData.created_at 
+        ? new Date(leaveData.created_at).toISOString() 
+        : new Date().toISOString(),
       footer: {
-        text: type === 'SUBMITTED' ? 'Leave Management System' : 'Leave of Absence'
+        text: leaveUrl,
+        icon_url: 'https://cdn.discordapp.com/emojis/1234567890123456789.png' // Optional: Add a small icon
       }
     }]
   };
@@ -539,9 +452,11 @@ export async function sendEncounterLogToDiscord(
     fields?: Array<{ name: string; value: string; inline?: boolean }>;
     timestamp?: Date;
     author?: {
+      id?: string;
       username: string;
       displayName?: string;
       avatar?: string;
+      discord_display_name?: string;
     };
     notes?: string;
     evidence_url?: string;
@@ -553,7 +468,6 @@ export async function sendEncounterLogToDiscord(
   }
 ): Promise<DiscordWebhookSendResult> {
   try {
-    
     // Get the appropriate webhook URL based on log type
     const webhookUrl = type === 'ATTACK' 
       ? process.env.DISCORD_ATTACK_LOGS_WEBHOOK 
@@ -910,5 +824,72 @@ export async function getGuildMembers(): Promise<DiscordGuildMember[]> {
   } catch (error) {
     console.error('Error fetching Discord guild members:', error);
     return [];
+  }
+}
+
+export async function updateDiscordNickname(discordId: string, nickname: string | null): Promise<boolean> {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  
+  if (!guildId || !botToken) {
+    console.error('[DISCORD] Missing DISCORD_GUILD_ID or DISCORD_BOT_TOKEN');
+    return false;
+  }
+
+  try {
+    console.log(`[DISCORD] Updating nickname for ${discordId} to "${nickname}"`);
+    
+    const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bot ${botToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ nick: nickname }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      let errorMessage = `Failed to update nickname for ${discordId}: ${response.status} ${response.statusText}`;
+      
+      // Add specific error handling for common Discord API errors
+      if (error.code) {
+        switch (error.code) {
+          case 10013:
+            errorMessage += ' - Insufficient permissions (bot needs "Manage Nicknames")';
+            break;
+          case 10007:
+            errorMessage += ' - Member not found';
+            break;
+          case 50001:
+            errorMessage += ' - Missing access (check bot permissions)';
+            break;
+          case 50013:
+            errorMessage += ' - Cannot edit a member with higher role';
+            break;
+          default:
+            errorMessage += ` - Discord API error: ${error.message || 'Unknown error'}`;
+        }
+      }
+      
+      console.error('[DISCORD]', errorMessage, {
+        status: response.status,
+        statusText: response.statusText,
+        error,
+        nickname,
+        discordId
+      });
+      return false;
+    }
+    
+    console.log(`[DISCORD] Successfully updated nickname for ${discordId} to "${nickname}"`);
+    return true;
+  } catch (error) {
+    console.error('[DISCORD] Error updating Discord nickname:', {
+      discordId,
+      nickname,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return false;
   }
 }

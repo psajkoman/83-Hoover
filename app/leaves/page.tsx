@@ -14,7 +14,7 @@ type LeaveRow = {
   start_date: string
   end_date: string
   note: string | null
-  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED'
+  status: 'AWAY' | 'DENIED' | 'RETURNED'
   created_at: string | null
 }
 
@@ -121,12 +121,11 @@ export default function LeavesHomePage() {
                   </TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      leave.status === 'APPROVED' ? 'bg-green-900 text-green-200' :
-                      leave.status === 'DENIED' ? 'bg-red-900 text-red-200' :
-                      leave.status === 'PENDING' ? 'bg-yellow-900 text-yellow-200' :
-                      'bg-gray-800 text-gray-300'
-                    }`}>
-                      {leave.status.replace('_', ' ')}
+                      leave.status === 'AWAY' ? 'bg-orange-900/30 text-orange-300' :
+                      leave.status === 'RETURNED' ? 'bg-green-900/20 text-green-400' :
+                      'bg-red-900/20 text-red-400'
+                    }`}> 
+                      {leave.status}
                     </span>
                   </TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap text-gray-300">

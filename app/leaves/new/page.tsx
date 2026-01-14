@@ -31,6 +31,7 @@ export default function CreateLeavePage() {
 
   const [members, setMembers] = useState<DiscordMember[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +82,7 @@ export default function CreateLeavePage() {
     setRequestedForName(value)
     setRequestedForDiscordId(null)
     setShowDropdown(value.trim().length >= 2)
+    setActiveSuggestionIndex(-1) // Reset active index when typing
   }
 
   const selectSuggestion = (m: DiscordMember) => {
@@ -88,6 +90,7 @@ export default function CreateLeavePage() {
     setRequestedForName(display)
     setRequestedForDiscordId(m.id)
     setShowDropdown(false)
+    setActiveSuggestionIndex(-1)
   }
 
   const onSubmit = async () => {
@@ -173,12 +176,32 @@ export default function CreateLeavePage() {
               value={requestedForName}
               onChange={(e) => onNameChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              onKeyDown={(e) => {
+                if (!showDropdown) return
+                
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setActiveSuggestionIndex(prev => 
+                    prev < suggestions.length - 1 ? prev + 1 : prev
+                  )
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setActiveSuggestionIndex(prev => 
+                    prev > 0 ? prev - 1 : 0
+                  )
+                } else if (e.key === 'Enter' && activeSuggestionIndex >= 0) {
+                  e.preventDefault()
+                  selectSuggestion(suggestions[activeSuggestionIndex])
+                } else if (e.key === 'Escape') {
+                  setShowDropdown(false)
+                }
+              }}
               placeholder="Firstname Lastname"
             />
 
             {showDropdown && suggestions.length > 0 ? (
               <div className="absolute z-50 mt-1 w-full rounded-lg border border-gang-accent/30 bg-gang-secondary/95 backdrop-blur-md shadow-xl overflow-hidden">
-                {suggestions.map((m) => {
+                {suggestions.map((m, index) => {
                   const display = m.nickname || m.display_name || m.username
                   return (
                     <button
@@ -186,7 +209,10 @@ export default function CreateLeavePage() {
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => selectSuggestion(m)}
-                      className="w-full text-left px-3 py-2 hover:bg-white/5 text-white"
+                      className={`w-full text-left px-3 py-2 hover:bg-white/5 text-white ${
+                        activeSuggestionIndex === index ? 'bg-white/10' : ''
+                      }`}
+                      onMouseEnter={() => setActiveSuggestionIndex(index)}
                     >
                       <div className="text-sm font-medium">{display}</div>
                       <div className="text-xs text-gray-400">@{m.username}</div>

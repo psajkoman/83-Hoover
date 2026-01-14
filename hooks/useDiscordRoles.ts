@@ -17,7 +17,8 @@ export function useDiscordRoles() {
         const data = await response.json();
         
         if (data.roles) {
-          const rolesArray = data.roles as DiscordRole[];
+          // Filter out the @notify role
+          const rolesArray = (data.roles as DiscordRole[]).filter(role => !role.name.toLowerCase().includes('notify'));
           const map = rolesArray.reduce<DiscordRoleMap>((acc, role) => {
             acc[role.id] = role;
             return acc;

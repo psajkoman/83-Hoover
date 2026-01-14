@@ -14,7 +14,7 @@ type LeaveRow = {
   start_date: string
   end_date: string
   note: string | null
-  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'AUTO_DENIED'
+  status: 'AWAY' | 'DENIED' | 'RETURNED'
   created_at: string | null
 }
 
@@ -81,19 +81,15 @@ export default function MyLeavesPage() {
                 <TableRow key={l.id} className="border-white/10">
                   <TableCell className="py-3 px-4 whitespace-nowrap text-white">
                     <div className="font-medium">{l.requested_for_name}</div>
-                    {l.requested_for_discord_id ? (
-                      <div className="text-xs text-gray-400">Discord-linked</div>
-                    ) : null}
                   </TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap text-gray-200">
                     {formatDateTime(l.start_date)} → {formatDateTime(l.end_date)}
                   </TableCell>
                   <TableCell className="py-3 px-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      l.status === 'APPROVED' ? 'bg-green-900 text-green-200' :
-                      l.status === 'DENIED' ? 'bg-red-900 text-red-200' :
-                      l.status === 'PENDING' ? 'bg-yellow-900 text-yellow-200' :
-                      'bg-gray-800 text-gray-300'
+                      l.status === 'AWAY' ? 'bg-orange-900 text-orange-200' :
+                      l.status === 'RETURNED' ? 'bg-green-900 text-green-200' :
+                      'bg-red-900 text-red-200'
                     }`}>
                       {l.status.replace('_', ' ')}
                     </span>

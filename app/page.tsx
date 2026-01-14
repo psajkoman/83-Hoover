@@ -262,9 +262,11 @@ export default function HomePage() {
         </p>
       </div>
 
+      {/* Temporarily hiding announcements section
       <div className="mb-8">
         <AnnouncementsSection />
       </div>
+      */}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -319,13 +321,8 @@ export default function HomePage() {
         <div className="lg:col-span-2">
           <Card variant="elevated" className="h-full">
             <h3 className="text-lg font-semibold text-white mb-4">Ellis Radio</h3>
-            <div className="rounded-lg overflow-hidden">
-              <iframe
-                src="/radio-player.html"
-                className="w-full h-64 border-0"
-                allow="autoplay"
-                title="Ellis Radio Player"
-              ></iframe>
+            <div className="rounded-lg p-6 bg-gang-secondary/30 text-left">
+              <p className="text-gray-400">Coming soon</p>
             </div>
           </Card>
         </div>

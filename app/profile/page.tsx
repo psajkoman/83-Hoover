@@ -1,6 +1,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
+import { format, parseISO } from 'date-fns'
 import { redirect } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
 import Image from 'next/image'
@@ -9,6 +10,7 @@ import type { User } from 'next-auth'
 import { useGuild } from '@/hooks/useGuild'
 import { useDiscordRoles } from '@/hooks/useDiscordRoles'
 import { useTimezone } from '@/contexts/TimezoneContext'
+import dynamic from 'next/dynamic'
 
 type WarLog = {
   id: string;
@@ -27,6 +29,12 @@ type WarLog = {
   };
 };
 
+// Dynamically import the LeavesSection component with SSR disabled
+const LeavesSection = dynamic(
+  () => import('./components/LeavesSection'),
+  { ssr: false }
+);
+
 export default function ProfilePage() {
   const { data: session, status } = useSession({
     required: true,
@@ -38,8 +46,13 @@ export default function ProfilePage() {
   const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([])
   const [warLogs, setWarLogs] = useState<WarLog[]>([])
   const [isLoadingWarLogs, setIsLoadingWarLogs] = useState(true)
+  const [hasActiveLeave, setHasActiveLeave] = useState(false);
+  const [activeLeaveEndDate, setActiveLeaveEndDate] = useState('');
+  
   const { name: guildName, isLoading: isGuildLoading } = useGuild()
   const { roles, getRoleName, getRoleColor, getTextColor } = useDiscordRoles()
+  const { formatDateTime } = useTimezone();
+  
   const totalDeaths = useMemo(() => {
     if (!warLogs.length || status === 'loading' || !session?.user?.name) return 0;
     const userDisplayName = session.user.name;
@@ -47,6 +60,12 @@ export default function ProfilePage() {
       return total + (log.players_killed?.filter(name => name === userDisplayName).length || 0);
     }, 0);
   }, [warLogs, session?.user?.name, status]);
+
+  const getServerDisplayName = useMemo(() => (discordId: string | undefined, fallback: string) => {
+    if (!discordId) return fallback
+    const member = discordMembers.find(m => m.id === discordId)
+    return member?.nickname || member?.display_name || member?.username || fallback
+  }, [discordMembers])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,17 +94,40 @@ export default function ProfilePage() {
     fetchData()
   }, [])
 
-  const getServerDisplayName = (discordId: string | undefined, fallback: string) => {
-    if (!discordId) return fallback
-    const member = discordMembers.find(m => m.id === discordId)
-    return member?.nickname || member?.display_name || member?.username || fallback
-  }
+  useEffect(() => {
+    const checkActiveLeaves = async () => {
+      try {
+        const response = await fetch('/api/leaves?scope=my');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const now = new Date();
+        
+        const activeLeave = (data.leaves || []).find((leave: any) => {
+          const start = new Date(leave.start_date);
+          const end = new Date(leave.end_date);
+          return leave.status === 'APPROVED' && now >= start && now <= end;
+        });
+        
+        if (activeLeave) {
+          setHasActiveLeave(true);
+          setActiveLeaveEndDate(new Date(activeLeave.end_date).toLocaleDateString());
+        } else {
+          setHasActiveLeave(false);
+        }
+      } catch (error) {
+        console.error('Error checking active leaves:', error);
+      }
+    };
+    
+    checkActiveLeaves();
+  }, [session?.user?.id]);
 
-  const getMemberJoinDate = (discordId?: string) => {
+  const getMemberJoinDate = useMemo(() => (discordId?: string) => {
     if (!discordId) return null
     const member = discordMembers.find(m => m.id === discordId)
     return member?.joinedAt ? new Date(member.joinedAt) : null
-  }
+  }, [discordMembers])
 
   if (status === 'loading' || isGuildLoading) {
     return (
@@ -96,12 +138,12 @@ export default function ProfilePage() {
       </div>
     )
   }
-  const { formatDateTime  } = useTimezone()
   const user = session.user as User
   const discordId = user.discordId
   const username = user.name || user.username || 'User'
   const displayName = getServerDisplayName(discordId, username)
   const joinDate = getMemberJoinDate(discordId)
+  
   const memberSince = joinDate
     ? joinDate.toLocaleDateString(undefined, {
         year: 'numeric',
@@ -155,29 +197,42 @@ export default function ProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-900 rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Account Details</h3>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-gray-400">Display Name</p>
-              <p className="text-white">{displayName}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-400">Account Status</p>
-              <p className="text-green-400">Active</p>
-            </div>
-            {currentMember?.roles && currentMember.roles.length > 0 && (
+        <div className="space-y-6">
+          <div className="bg-gray-900 rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Account Details</h3>
+            <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-400">Rank Roles</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {Array.from(new Set(currentMember.roles)) // Remove duplicates
-                    .filter(roleId => getRoleName(roleId) !== roleId) // Only show roles that exist in our system
-                    .sort((a, b) => {
+                <p className="text-sm font-medium text-gray-400">Display Name</p>
+                <p className="text-white">{displayName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-400">Account Status</p>
+                <div className="flex items-center">
+                  <div className={`h-2.5 w-2.5 rounded-full mr-2 ${hasActiveLeave ? 'bg-orange-400' : 'bg-green-400'}`}></div>
+                  <p className={hasActiveLeave ? 'text-orange-400' : 'text-green-400'}>
+                    {hasActiveLeave ? 'Away on Leave' : 'Active'}
+                  </p>
+                </div>
+                {hasActiveLeave && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Until {activeLeaveEndDate}
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-400">Roles</p>
+                <div className="flex flex-wrap gap-2">
+                  {currentMember?.roles
+                    ?.filter((roleId: string) => {
+                      const role = roles.find(r => r.id === roleId);
+                      return role && getRoleName(roleId) !== roleId && !role.name.toLowerCase().includes('notify');
+                    })
+                    .sort((a: string, b: string) => {
                       const roleA = roles.find(r => r.id === a);
                       const roleB = roles.find(r => r.id === b);
                       return (roleB?.position || 0) - (roleA?.position || 0);
                     })
-                    .map((roleId) => {
+                    .map((roleId: string) => {
                       const color = getRoleColor(roleId);
                       const textColor = getTextColor(roleId);
                       
@@ -186,7 +241,7 @@ export default function ProfilePage() {
                           key={roleId}
                           className="px-2 py-1 text-xs font-medium rounded-full"
                           style={{
-                            backgroundColor: `${color}40`, // 25% opacity
+                            backgroundColor: `${color}40`,
                             color: textColor,
                             border: `1px solid ${color}80`,
                           }}
@@ -194,12 +249,16 @@ export default function ProfilePage() {
                           {getRoleName(roleId)}
                         </span>
                       );
-                    })}
+                    }) || (
+                      <span className="text-gray-400 text-sm">No roles assigned</span>
+                    )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
+
+        <LeavesSection />
 
         <div className="bg-gray-900 rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-semibold text-white mb-4">War Stats</h3>

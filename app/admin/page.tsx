@@ -47,7 +47,9 @@ const getTextColor = (bgColor: string): string => {
 
 type User = Database['public']['Tables']['users']['Row']
 type LoginHistory = Database['public']['Tables']['login_history']['Row']
-type Leave = Database['public']['Tables']['leaves']['Row']
+type Leave = Omit<Database['public']['Tables']['leaves']['Row'], 'status'> & {
+  status: 'AWAY' | 'DENIED' | 'RETURNED'
+}
 
 // Type definitions
 
@@ -72,17 +74,6 @@ export default async function AdminPage() {
     redirect('/')
   }
 
-  // Fetch pending leaves
-  const { data: pendingLeaves } = await supabase
-    .from('leaves')
-    .select('*')
-    .eq('status', 'PENDING')
-    .order('created_at', { ascending: true }) as { data: Leave[] | null }
-
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'LEADER' && user.role !== 'MODERATOR')) {
-    redirect('/')
-  }
-
   // Fetch current Discord members
   let currentMemberIds: Set<string> = new Set();
   try {
@@ -101,7 +92,8 @@ export default async function AdminPage() {
     postsResult, 
     pendingResult, 
     recentUsersResult,
-    allUsersResult
+    allUsersResult,
+    { data: pendingLeaves }
   ] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }),
     supabase.from('posts').select('id', { count: 'exact', head: true }),
@@ -114,7 +106,13 @@ export default async function AdminPage() {
     supabase
       .from('users')
       .select('id, username, discord_id, role, joined_at, last_active, avatar, display_name')
-      .order('username', { ascending: true })
+      .order('username', { ascending: true }),
+    // Fetch pending leaves
+    supabase
+      .from('leaves')
+      .select('*')
+      .eq('status', 'AWAY')
+      .order('created_at', { ascending: false })
   ])
 
   const totalUsers = usersResult.count || 0
@@ -256,8 +254,8 @@ export default async function AdminPage() {
                       {format(new Date(leave.start_date), 'd MMM yyyy')} → {format(new Date(leave.end_date), 'd MMM yyyy')}
                     </TableCell>
                     <TableCell className="py-3 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900 text-yellow-200">
-                        Pending
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900 text-orange-200">
+                        Away
                       </span>
                     </TableCell>
                     <TableCell className="py-3 px-4 text-gray-300">
