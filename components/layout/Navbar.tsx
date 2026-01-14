@@ -28,7 +28,6 @@ export default function Navbar() {
     { href: '/leaves', label: 'Leaves', icon: Calendar },
     { href: '/turf', label: 'Turf Map', icon: Map },
     { href: '/roster', label: 'Roster', icon: User },
-    { href: '/media', label: 'Media', icon: ImageIcon },
     { href: '/admin', label: 'Admin', icon: Shield, adminOnly: true },
   ]
 
