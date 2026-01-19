@@ -435,8 +435,7 @@ export function buildLeaveNotificationPayload(
         ? new Date(leaveData.created_at).toISOString() 
         : new Date().toISOString(),
       footer: {
-        text: leaveUrl,
-        icon_url: 'https://cdn.discordapp.com/emojis/1234567890123456789.png' // Optional: Add a small icon
+        text: leaveUrl
       }
     }]
   };

@@ -320,9 +320,9 @@ export default function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
         <div className="lg:col-span-2">
           <Card variant="elevated" className="h-full">
-            <h3 className="text-lg font-semibold text-white mb-4">Ellis Radio</h3>
-            <div className="rounded-lg p-6 bg-gang-secondary/30 text-left">
-              <p className="text-gray-400">Coming soon</p>
+            <h3 className="text-lg font-semibold text-white mb-4">DJ Duante Radio</h3>
+            <div className="rounded-lg p-6 bg-gang-secondary/30 text-center">
+              <iframe src="//www.radiojar.com/widget/radio/6eb8svqbhxnwv/player/" width="320" height="134" scrolling="no"></iframe>
             </div>
           </Card>
         </div>
